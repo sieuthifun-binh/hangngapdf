@@ -8,14 +8,14 @@ import google.generativeai as genai
 from pdf2docx import Converter
 
 # --- CẤU HÌNH API AI ---
+# CẤU HÌNH AI - CÁCH NÀY ĐẢM BẢO KHÔNG BỊ LỖI NOTFOUND
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-pro')
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
+    # Dùng model này thay cho 'gemini-pro'
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error(f"Lỗi khởi tạo AI: {e}")
-
-st.set_page_config(page_title="PDF Pro Toolkit", layout="wide")
-st.title("🚀 PDF Pro Toolkit - Bản Hoàn Chỉnh & Ổn Định")
+    st.error(f"Lỗi cấu hình AI: {e}")
 
 # --- HÀM XỬ LÝ PDF ---
 def split_pdf_advanced(uploaded_file, mode, custom_pages=None):
