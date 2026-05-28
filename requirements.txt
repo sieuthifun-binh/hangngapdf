@@ -1,6 +1,6 @@
 streamlit
 pymupdf
 pdf2docx
-tabula-py
+pdfplumber
 pandas
 xlsxwriter
