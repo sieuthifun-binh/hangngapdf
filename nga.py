@@ -8,7 +8,7 @@ from pdf2docx import Converter
 
 # Cấu hình giao diện
 st.set_page_config(page_title="PDF Pro Toolkit", layout="wide", page_icon="📄")
-st.title("🚀 PDF Pro Toolkit - Chuyên nghiệp & Ổn định")
+st.title("🚀 PDF Pro Toolkit - By Nguyen Thi Hang Nga - TTYT AD")
 
 # --- HÀM XỬ LÝ ---
 def split_pdf(uploaded_file, mode, custom_pages=None):
