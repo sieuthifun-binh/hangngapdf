@@ -1,35 +1,21 @@
+import streamlit as st
 
+st.set_page_config(page_title="PDF Pro Toolkit", layout="wide")
+st.title("🚀 PDF Pro Toolkit - Công cụ xử lý PDF chuyên nghiệp")
 
-import fitz  # PyMuPDF
-import pandas as pd
-from pdf2docx import Converter # Cần cài thêm: pip install pdf2docx
+tab1, tab2, tab3 = st.tabs(["✂️ Băm PDF", "📝 PDF sang Word", "📊 PDF sang Excel"])
 
-# --- CHỨC NĂNG BĂM PDF TÙY BIẾN ---
-def split_pdf_custom(input_pdf, mode, custom_pages=None):
-    """
-    mode: 'chan', 'le', 'tuy_chon'
-    custom_pages: list hoặc string (VD: "1,3,5" hoặc [1, 2, 5])
-    """
-    doc = fitz.open(stream=input_pdf.read(), filetype="pdf")
-    new_doc = fitz.open()
-    
-    if mode == 'chan':
-        for i in range(1, len(doc), 2): new_doc.insert_pdf(doc, from_page=i, to_page=i)
-    elif mode == 'le':
-        for i in range(0, len(doc), 2): new_doc.insert_pdf(doc, from_page=i, to_page=i)
-    elif mode == 'tuy_chon':
-        for p in custom_pages: new_doc.insert_pdf(doc, from_page=p-1, to_page=p-1)
-        
-    return new_doc
+with tab1:
+    st.subheader("Công cụ băm PDF tùy chỉnh")
+    mode = st.radio("Chọn cách băm:", ["Trang chẵn", "Trang lẻ", "Tùy chọn"])
+    uploaded_file = st.file_uploader("Tải lên file PDF", type="pdf")
+    if st.button("Xử lý Băm"):
+        st.write("Đang phát triển logic băm...")
 
-# --- CHỨC NĂNG CHUYỂN ĐỔI ---
-def pdf_to_word(pdf_file, docx_path):
-    cv = Converter(pdf_file)
-    cv.convert(docx_path)
-    cv.close()
+with tab2:
+    st.subheader("PDF sang Word")
+    # Logic convert Word...
 
-def pdf_to_excel(pdf_file):
-    # Dùng tabula-py hoặc pandas để trích xuất bảng
-    import tabula
-    df_list = tabula.read_pdf(pdf_file, pages='all')
-    return df_list # Danh sách các bảng (DataFrame)
+with tab3:
+    st.subheader("PDF sang Excel")
+    # Logic convert Excel...
