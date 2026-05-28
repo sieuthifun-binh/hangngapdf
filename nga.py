@@ -1,16 +1,18 @@
 import streamlit as st
 import fitz  # PyMuPDF
+import os
+import io
+import tabula
 import pandas as pd
 from pdf2docx import Converter
-import io
-import os
 
-# Cấu hình trang
-st.set_page_config(page_title="PDF Pro Toolkit", layout="wide")
-st.title("🚀 PDF Pro Toolkit - Công cụ xử lý PDF")
+# Cấu hình giao diện
+st.set_page_config(page_title="PDF Pro Toolkit", layout="wide", page_icon="📄")
+st.title("🚀 PDF Pro Toolkit - Chuyên nghiệp & Ổn định")
 
-# --- HÀM XỬ LÝ PDF ---
+# --- HÀM XỬ LÝ ---
 def split_pdf(uploaded_file, mode, custom_pages=None):
+    uploaded_file.seek(0)
     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
     new_doc = fitz.open()
     
@@ -26,34 +28,47 @@ def split_pdf(uploaded_file, mode, custom_pages=None):
         except: return None
     return new_doc
 
-# --- GIAO DIỆN ---
-tab1, tab2 = st.tabs(["✂️ Băm PDF", "📝 PDF sang Word"])
+# --- GIAO DIỆN CHÍNH ---
+tab1, tab2, tab3 = st.tabs(["✂️ Băm PDF", "📝 PDF sang Word", "📊 PDF sang Excel"])
 
 with tab1:
     st.subheader("Băm PDF")
-    mode = st.radio("Chế độ:", ["Trang chẵn", "Trang lẻ", "Tùy chọn"])
-    custom_pages = st.text_input("Trang (VD: 1,3,5):") if mode == 'Tùy chọn' else None
-    
-    uploaded_file = st.file_uploader("Chọn file PDF:", type="pdf")
-    
-    if st.button("Xử lý Băm"):
-        if uploaded_file:
-            result = split_pdf(uploaded_file, mode, custom_pages)
-            if result:
-                pdf_bytes = result.write()
-                st.download_button("📥 Tải về PDF", data=pdf_bytes, file_name="split.pdf", mime="application/pdf")
+    mode = st.radio("Chế độ:", ["Trang chẵn", "Trang lẻ", "Tùy chọn"], key="split")
+    pages = st.text_input("Trang (VD: 1,3,5):") if mode == 'Tùy chọn' else None
+    uploaded = st.file_uploader("Tải PDF:", type="pdf", key="file_split")
+    if st.button("Băm ngay"):
+        if uploaded:
+            res = split_pdf(uploaded, mode, pages)
+            if res:
+                pdf_bytes = res.write()
+                st.download_button("📥 Tải PDF", data=pdf_bytes, file_name="split.pdf", mime="application/pdf")
             else: st.error("Lỗi xử lý trang!")
 
 with tab2:
     st.subheader("PDF sang Word")
-    docx_file = st.file_uploader("Chọn file PDF để chuyển:", type="pdf")
-    if st.button("Convert sang Word"):
-        if docx_file:
-            with open("temp.pdf", "wb") as f: f.write(docx_file.getbuffer())
-            cv = Converter("temp.pdf")
-            cv.convert("output.docx", start=0, end=None)
-            cv.close()
-            with open("output.docx", "rb") as f:
-                st.download_button("📥 Tải về Word", data=f, file_name="converted.docx")
-            os.remove("temp.pdf")
-            os.remove("output.docx")
+    file_word = st.file_uploader("Tải PDF:", type="pdf", key="word")
+    if st.button("Convert to Word"):
+        if file_word:
+            with open("temp.pdf", "wb") as f: f.write(file_word.getbuffer())
+            try:
+                cv = Converter("temp.pdf")
+                cv.convert("out.docx", layout=True) # layout=True giữ bố cục tốt hơn
+                cv.close()
+                with open("out.docx", "rb") as f: st.download_button("📥 Tải Word", f, "output.docx")
+                os.remove("temp.pdf"); os.remove("out.docx")
+            except Exception as e: st.error(f"Lỗi: {e}")
+
+with tab3:
+    st.subheader("PDF sang Excel")
+    file_excel = st.file_uploader("Tải PDF bảng biểu:", type="pdf", key="excel")
+    if st.button("Convert to Excel"):
+        if file_excel:
+            with open("temp_ex.pdf", "wb") as f: f.write(file_excel.getbuffer())
+            try:
+                tables = tabula.read_pdf("temp_ex.pdf", pages='all', lattice=True)
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    for i, t in enumerate(tables): t.to_excel(writer, sheet_name=f'Sheet{i+1}', index=False)
+                st.download_button("📥 Tải Excel", output.getvalue(), "data.xlsx")
+                os.remove("temp_ex.pdf")
+            except Exception as e: st.error(f"Lỗi: {e}")
