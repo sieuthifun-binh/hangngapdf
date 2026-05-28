@@ -5,3 +5,5 @@ tabula-py
 pandas
 xlsxwriter
 pdfplumber
+pikepdf
+google-generativeai
