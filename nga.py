@@ -56,19 +56,28 @@ with tab2:
                 cv.convert(out_path, layout=True)
                 cv.close()
                 
+                # ... đoạn code phía trên ...
+                
                 # Tóm tắt AI
                 try:
                     doc_text = ""
                     with fitz.open(in_path) as doc:
                         for page in doc: doc_text += page.get_text()
-                    prompt = f"Tóm tắt 3 ý chính của văn bản này:\n\n{doc_text[:2000]}"
-                    res = st.session_state.model.generate_content(prompt)
-                    st.info(f"💡 Tóm tắt: {res.text}")
-                except:
-                    st.warning("AI không thể tóm tắt được (có thể do API Key hoặc nội dung quá ngắn).")
+                    
+                    # Debug: Kiểm tra xem text trích xuất được bao nhiêu
+                    if len(doc_text.strip()) < 10:
+                        st.warning("⚠️ Tài liệu không chứa văn bản (có thể là file ảnh scan). AI không thể đọc được.")
+                    else:
+                        prompt = f"Hãy tóm tắt văn bản này thành 3 ý chính:\n\n{doc_text[:2000]}"
+                        res = st.session_state.model.generate_content(prompt)
+                        st.info(f"💡 Tóm tắt: {res.text}")
+                        
+                except Exception as e:
+                    # In ra lỗi chi tiết để biết chính xác nó đang bị ở đâu
+                    st.error(f"❌ Lỗi AI: {str(e)}")
+                    st.write("Kiểm tra lại API Key hoặc quyền truy cập mô hình.")
                 
-                with open(out_path, "rb") as f: 
-                    st.download_button("📥 Tải File Word", f, "output.docx")
+                # ... đoạn code phía dưới ...
 
 # --- TAB 3: AI PDF SANG EXCEL ---
 with tab3:
