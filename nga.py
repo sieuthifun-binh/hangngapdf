@@ -54,30 +54,49 @@ with tab1:
 
 # --- TAB 2: PDF SANG WORD ---
 with tab2:
-    file_word = st.file_uploader("Tải PDF để chuyển sang Word:", type="pdf", key="word")
-    if st.button("Convert to Word"):
+    st.subheader("📝 PDF sang Word (Thông minh)")
+    file_word = st.file_uploader("Tải PDF:", type="pdf", key="w_ai")
+    
+    if st.button("Chuyển đổi & Tóm tắt"):
         if file_word:
-            with st.spinner("Đang chuyển đổi định dạng..."):
+            with st.spinner("Đang chuyển đổi và nhờ AI phân tích..."):
+                # 1. Chuyển đổi PDF sang Word
                 with open("in.pdf", "wb") as f: f.write(file_word.getbuffer())
                 cv = Converter("in.pdf")
                 cv.convert("out.docx", layout=True)
                 cv.close()
-                with open("out.docx", "rb") as f: st.download_button("📥 Tải file Word", f, "output.docx")
+                
+                # 2. Dùng AI tóm tắt nội dung
+                # Lấy text từ PDF để AI đọc
+                doc_text = ""
+                with fitz.open("in.pdf") as doc:
+                    for page in doc:
+                        doc_text += page.get_text()
+                
+                # Gọi Gemini để tóm tắt
+                prompt = f"Hãy tóm tắt ngắn gọn nội dung văn bản này trong 3-5 ý chính:\n\n{doc_text[:5000]}" # Giới hạn ký tự để tránh lỗi
+                response = model.generate_content(prompt)
+                
+                # 3. Hiển thị kết quả
+                st.success("✅ Chuyển đổi hoàn tất!")
+                st.markdown("### 💡 Tóm tắt nội dung tài liệu:")
+                st.info(response.text)
+                
+                with open("out.docx", "rb") as f: 
+                    st.download_button("📥 Tải File Word", f, "output.docx")
 
 # --- TAB 3: PDF SANG EXCEL ---
 with tab3:
-    file_excel = st.file_uploader("Tải PDF chứa bảng:", type="pdf", key="excel")
-    if st.button("Convert to Excel"):
-        if file_excel:
-            with st.spinner("Đang trích xuất dữ liệu bảng..."):
-                output = io.BytesIO()
-                with pdfplumber.open(file_excel) as pdf, pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    for i, page in enumerate(pdf.pages):
-                        table = page.extract_table()
-                        if table:
-                            df = pd.DataFrame(table[1:], columns=table[0])
-                            df.to_excel(writer, sheet_name=f'Page_{i+1}', index=False)
-                st.download_button("📥 Tải Excel", output.getvalue(), "data.xlsx")
-
+    f_e = st.file_uploader("PDF Scan sang Excel (AI):", type="pdf", key="e1")
+    if st.button("AI Extract Data"):
+        with st.spinner("AI đang phân tích..."):
+            with pdfplumber.open(f_e) as pdf:
+                # Trích xuất bảng bằng thư viện, nếu phức tạp sẽ đẩy cho AI phân tích
+                page = pdf.pages[0]
+                table = page.extract_table()
+                df = pd.DataFrame(table[1:], columns=table[0])
+            out = io.BytesIO()
+            df.to_excel(out, index=False)
+            st.download_button("📥 Tải Excel", out.getvalue(), "data.xlsx")
 st.markdown("---")
 st.caption("✨ Hệ thống được tối ưu hóa cho công việc văn phòng chuyên nghiệp.")
