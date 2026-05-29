@@ -3,7 +3,9 @@ import pikepdf
 import pdfplumber
 import pandas as pd
 import io
+import google.generativeai as genai
 from pdf2docx import Converter
+import fitz
 
 # --- CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(page_title="PDF Pro Toolkit", layout="wide")
