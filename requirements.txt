@@ -8,4 +8,4 @@ google-generativeai
 pdf2docx
 python-docx
 pillow
-rembg
+requests
