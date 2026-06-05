@@ -287,29 +287,28 @@ with tab5:
                 st.error(f"❌ Có lỗi phát sinh: {str(e)}")
 
 # ==============================================================================
-# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH HYBRID ENGINE (KHÔNG LO TREO SERVER) ---
+# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH HYBRID ENGINE (ĐÃ SỬA SẠCH LỖI TÊN FILE TIẾNG VIỆT) ---
 # ==============================================================================
 with tab6:
     st.subheader("✨ AI Tách & Đổi Nền Ảnh Studio (Remove BG Pro)")
-    st.caption("⚡ Cơ chế xử lý thông minh kết hợp API siêu tốc. Cực nhẹ và không gây lag máy chủ Cloud.")
+    st.caption("⚡ Cơ chế xử lý thông minh kết hợp API siêu tốc. Đã sửa lỗi không đọc được tên file có dấu Tiếng Việt.")
     
     col_config, col_display = st.columns([1, 2])
     
     with col_config:
         st.markdown("##### 🛠️ Cài đặt bộ lọc")
-        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_hybrid")
+        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_hybrid_fixed_v3")
         
         bg_mode = st.selectbox(
             "🎨 Chọn kiểu nền mới:",
             ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"],
-            key="bg_mode_idx"
+            key="bg_mode_idx_fixed_v3"
         )
         
         bg_color = "#FFFFFF"
         if bg_mode == "Nền màu đơn sắc (Solid Color)":
-            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_val")
+            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_val_fixed_v3")
             
-        # Kiểm tra xem người dùng đã thiết lập cấu hình khóa API cao cấp chưa
         has_api = "REMOVE_BG_API_KEY" in st.secrets
         if has_api:
             st.success("🚀 Đã tìm thấy REMOVE_BG_API_KEY. Chế độ AI Studio sắc nét từng sợi tóc đã sẵn sàng!")
@@ -328,17 +327,19 @@ with tab6:
             with c2:
                 st.markdown("✨ **Kết quả xử lý:**")
                 
-                if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True):
+                if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True, key="btn_run_bg_fixed_v3"):
                     with st.spinner("Đang phân tích cấu trúc màu và xử lý điểm ảnh..."):
                         try:
                             final_bytes = None
                             result_image = None
                             
-                            # CHẾ ĐỘ CHẠY CHÍNH: NẾU CÓ CHÌA KHÓA API REMOVE.BG TRÊN CLOUD
+                            # GỌI AI CLOUD NẾU ĐÃ CẤU HÌNH ĐÚNG TÊN KHÓA API
                             if has_api:
+                                # SỬA LỖI TẠI ĐÂY: Thay vì truyền uploaded_bg_img trực tiếp (bị dính tên tiếng Việt),
+                                # ta ép tuple ('image.png', bytes, mime) để xóa bỏ hoàn toàn chuỗi ký tự latin-1 lỗi.
                                 response = requests.post(
                                     'https://api.remove.bg/v1.0/removebg',
-                                    files={'image_file': uploaded_bg_img.getvalue()},
+                                    files={'image_file': ('image.png', uploaded_bg_img.getvalue(), uploaded_bg_img.type)},
                                     data={'size': 'auto'},
                                     headers={'X-Api-Key': st.secrets["REMOVE_BG_API_KEY"]},
                                 )
@@ -346,16 +347,15 @@ with tab6:
                                     img_data = response.content
                                     result_image = Image.open(io.BytesIO(img_data))
                                 else:
-                                    st.error("⚠️ Khóa API có trục trặc hoặc hết hạn ngạch. Hệ thống tự động chuyển sang Công cụ đồ họa thay thế.")
+                                    st.warning(f"⚠️ API trả về lỗi mã {response.status_code}. Tự động dùng Công cụ đồ họa thay thế.")
                             
-                            # CHẾ ĐỘ DỰ PHÒNG CHỐNG CRASH: TỰ ĐỘNG CHẠY NẾU KHÔNG CÓ KHÓA API
+                            # ENGINE DỰ PHÒNG CHỐNG CRASH HỆ THỐNG TRÊN CLOUD SERVER
                             if result_image is None:
-                                # Đọc ảnh và tách nền theo thuật toán ngưỡng sáng trắng (Phổ biến cho ảnh sản phẩm/ảnh thẻ nền sáng)
                                 img = Image.open(uploaded_bg_img).convert("RGBA")
                                 datas = img.getdata()
                                 new_data = []
                                 for item in datas:
-                                    # Nếu điểm ảnh gần sát với màu trắng (nền studio hoặc phông sáng) -> Chuyển thành trong suốt
+                                    # Lọc các điểm ảnh vùng nền có màu thiên sáng gần trắng
                                     if item[0] > 220 and item[1] > 220 and item[2] > 220:
                                         new_data.append((255, 255, 255, 0))
                                     else:
@@ -363,7 +363,7 @@ with tab6:
                                 img.putdata(new_data)
                                 result_image = img
 
-                            # THỰC HIỆN ĐỔ MÀU NỀN THEO YÊU CẦU CỦA USER
+                            # ĐỔ MÀU NỀN THEO LỰA CHỌN CỦA NGƯỜI DÙNG
                             if bg_mode == "Nền màu đơn sắc (Solid Color)":
                                 hex_str = bg_color.lstrip('#')
                                 rgb_tuple = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
@@ -371,21 +371,28 @@ with tab6:
                                 background.paste(result_image, (0, 0), result_image)
                                 result_image = background
                             
-                            # Chuyển đổi kết quả đồ họa cuối cùng sang dạng Bytes để xuất nút tải
+                            # Biên dịch ảnh ra bộ nhớ RAM làm dữ liệu tải về
                             buffer = io.BytesIO()
                             result_image.save(buffer, format="PNG")
                             final_bytes = buffer.getvalue()
                             
-                            # Hiển thị sản phẩm lên giao diện
                             st.image(result_image, use_container_width=True)
                             st.success("🎉 Tách và xử lý ảnh hoàn tất!")
                             
+                            # Đảm bảo tên file tải về sạch sẽ, không lỗi ký tự
+                            safe_filename = uploaded_bg_img.name.rsplit('.', 1)[0]
+                            # Loại bỏ ký tự đặc biệt nếu có để an toàn cho hệ điều hành
+                            safe_filename = "".join([c for c in safe_filename if c.isalnum() or c in ['_', '-']]).strip()
+                            if not safe_filename:
+                                safe_filename = "studio_output"
+                                
                             st.download_button(
                                 label="📥 Tải ảnh kết quả về máy (.PNG)",
                                 data=final_bytes,
-                                file_name=f"{uploaded_bg_img.name.rsplit('.', 1)[0]}_studio.png",
+                                file_name=f"{safe_filename}_studio.png",
                                 mime="image/png",
-                                use_container_width=True
+                                use_container_width=True,
+                                key="btn_download_bg_fixed_v3"
                             )
                         except Exception as e:
                             st.error(f"❌ Lỗi xử lý ảnh: {str(e)}")
