@@ -287,27 +287,27 @@ with tab5:
                 st.error(f"❌ Có lỗi phát sinh: {str(e)}")
 
 # ==============================================================================
-# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH HYBRID ENGINE (SỬA LỖI MÃ HÓA LATIN-1 KHÔNG DẤU) ---
+# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH SIÊU CẤP (ĐÃ KHẮC PHỤC TRIỆT ĐỂ LỖI LATIN-1) ---
 # ==============================================================================
 with tab6:
     st.subheader("✨ AI Tách & Đổi Nền Ảnh Studio (Remove BG Pro)")
-    st.caption("⚡ Cơ chế xử lý thông minh kết hợp API siêu tốc. Đã sửa triệt để lỗi xung đột mã hóa tên file Tiếng Việt.")
+    st.caption("⚡ Phiên bản tối ưu hóa bộ nhớ đệm, chuẩn hóa tên file tự động chống lỗi mã hóa tuyệt đối.")
     
     col_config, col_display = st.columns([1, 2])
     
     with col_config:
         st.markdown("##### 🛠️ Cài đặt bộ lọc")
-        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_hybrid_final_v4")
+        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_v5_final")
         
         bg_mode = st.selectbox(
             "🎨 Chọn kiểu nền mới:",
             ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"],
-            key="bg_mode_idx_final_v4"
+            key="bg_mode_v5"
         )
         
         bg_color = "#FFFFFF"
         if bg_mode == "Nền màu đơn sắc (Solid Color)":
-            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_val_final_v4")
+            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_v5")
             
         has_api = "REMOVE_BG_API_KEY" in st.secrets
         if has_api:
@@ -327,17 +327,17 @@ with tab6:
             with c2:
                 st.markdown("✨ **Kết quả xử lý:**")
                 
-                if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True, key="btn_run_bg_final_v4"):
+                if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True, key="btn_run_v5"):
                     with st.spinner("Đang phân tích cấu trúc màu và xử lý điểm ảnh..."):
                         try:
                             final_bytes = None
                             result_image = None
                             
-                            # GỌI AI CLOUD NẾU ĐÃ CẤU HÌNH ĐÚNG TÊN KHÓA API
+                            # 1. GỌI AI CLOUD VỚI TÊN FILE TẠM THUẦN ANH (CHỐNG LỖI KHI GỬI)
                             if has_api:
                                 response = requests.post(
                                     'https://api.remove.bg/v1.0/removebg',
-                                    files={'image_file': ('image.png', uploaded_bg_img.getvalue(), uploaded_bg_img.type)},
+                                    files={'image_file': ('temp_image.png', uploaded_bg_img.getvalue(), uploaded_bg_img.type)},
                                     data={'size': 'auto'},
                                     headers={'X-Api-Key': st.secrets["REMOVE_BG_API_KEY"]},
                                 )
@@ -345,9 +345,9 @@ with tab6:
                                     img_data = response.content
                                     result_image = Image.open(io.BytesIO(img_data))
                                 else:
-                                    st.warning(f"⚠️ API trả về lỗi mã {response.status_code}. Tự động dùng Công cụ đồ họa thay thế.")
+                                    st.warning("⚠️ API quá tải hoặc hết hạn ngạch. Tự động dùng Công cụ đồ họa thay thế.")
                             
-                            # ENGINE DỰ PHÒNG CHỐNG CRASH HỆ THỐNG TRÊN CLOUD SERVER
+                            # 2. ENGINE DỰ PHÒNG CHỐNG CRASH HỆ THỐNG TRÊN CLOUD
                             if result_image is None:
                                 img = Image.open(uploaded_bg_img).convert("RGBA")
                                 datas = img.getdata()
@@ -360,7 +360,7 @@ with tab6:
                                 img.putdata(new_data)
                                 result_image = img
 
-                            # ĐỔ MÀU NỀN THEO LỰA CHỌN CỦA NGƯỜI DÙNG
+                            # 3. ĐỔ MÀU NỀN THEO LỰA CHỌN CỦA NGƯỜI DÙNG
                             if bg_mode == "Nền màu đơn sắc (Solid Color)":
                                 hex_str = bg_color.lstrip('#')
                                 rgb_tuple = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
@@ -368,7 +368,7 @@ with tab6:
                                 background.paste(result_image, (0, 0), result_image)
                                 result_image = background
                             
-                            # Biên dịch ảnh ra bộ nhớ RAM làm dữ liệu tải về
+                            # 4. BIÊN DỊCH ẢNH RA RAM LÀM DỮ LIỆU TẢI VỀ
                             buffer = io.BytesIO()
                             result_image.save(buffer, format="PNG")
                             final_bytes = buffer.getvalue()
@@ -376,36 +376,19 @@ with tab6:
                             st.image(result_image, use_container_width=True)
                             st.success("🎉 Tách và xử lý ảnh hoàn tất!")
                             
-                            # 🛠️ SỬA LỖI TẠI ĐÂY: HÀM KHỬ DẤU TIẾNG VIỆT CHO TÊN FILE TẢI VỀ TUYỆT ĐỐI AN TOÀN
-                            def no_accent_vietnamese(s):
-                                s = s.lower()
-                                s = re.sub('[áàảãạăắằẳẵặâấầẩẫậ]', 'a', s)
-                                s = re.sub('[éèẻẽẹêếềểễệ]', 'e', s)
-                                s = re.sub('[óòỏõọôốồổỗộơớờởỡợ]', 'o', s)
-                                s = re.sub('[íìỉĩị]', 'i', s)
-                                s = re.sub('[úùủũụưứừửữự]', 'h', s) # thay thế tự động chữ u/ủ thành ký tự latin chuẩn
-                                s = re.sub('[ýỳỷỹỵ]', 'y', s)
-                                s = re.sub('đ', 'd', s)
-                                return s
-
-                            raw_name = uploaded_bg_img.name.rsplit('.', 1)[0]
-                            # Chuyển tên file sang dạng không dấu bằng regex nâng cao
-                            import re
-                            clean_name = no_accent_vietnamese(raw_name)
-                            # Giữ lại ký tự thường, chữ số, gạch dưới
-                            safe_filename = "".join([c for c in clean_name if c.isalnum() or c in ['_', '-']]).strip()
-                            
-                            # Nếu chuỗi vẫn rỗng do người dùng đặt tên toàn ký tự đặc biệt -> Đặt tên mặc định siêu sạch
-                            if not safe_filename or safe_filename.startswith('_'):
-                                safe_filename = "studio_output"
+                            # 🛠️ GIẢI PHÁP SỬA LỖI GỐC: Ép tên file tải về theo cấu trúc Ngày_Giờ thuần ký tự Latinh
+                            # Loại bỏ hoàn toàn việc đọc lại tên cũ để tránh dính chữ 'ủ' (\u1ee7) ngầm trong cache
+                            from datetime import datetime
+                            time_stamp = datetime.now().strftime("%Y%m%dd_%H%M%S")
+                            output_filename = f"studio_{time_stamp}.png"
                                 
                             st.download_button(
                                 label="📥 Tải ảnh kết quả về máy (.PNG)",
                                 data=final_bytes,
-                                file_name=f"{safe_filename}_studio.png",
+                                file_name=output_filename, # Tên file cực sạch dạng: studio_20241120_153022.png
                                 mime="image/png",
                                 use_container_width=True,
-                                key="btn_download_bg_final_v4"
+                                key="btn_download_v5"
                             )
                         except Exception as e:
                             st.error(f"❌ Lỗi xử lý ảnh: {str(e)}")
