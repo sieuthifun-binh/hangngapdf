@@ -8,8 +8,8 @@ import google.generativeai as genai
 from pdf2docx import Converter
 import tempfile
 import os
-from PIL import Image
-from rembg import remove  # Thư viện AI xóa nền chuyên dụng
+import requests
+from PIL import Image, ImageOps
 
 # ==============================================================================
 # CẤU HÌNH BAN ĐẦU & LAYOUT HIỆN ĐẠI
@@ -286,86 +286,108 @@ with tab5:
             except Exception as e:
                 st.error(f"❌ Có lỗi phát sinh: {str(e)}")
 
-
 # ==============================================================================
-# --- TAB 6: AI XÓA NỀN ẢNH SIÊU TỐC QUA API (TỐC ĐỘ < 1 GIÂY) ---
+# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH HYBRID ENGINE (KHÔNG LO TREO SERVER) ---
 # ==============================================================================
 with tab6:
-    st.subheader("✨ AI Tách & Đổi Nền Ảnh Studio (Remove BG API)")
-    st.caption("⚡ Sử dụng API chuyên dụng cho tốc độ xử lý tức thì, không làm nặng máy chủ.")
+    st.subheader("✨ AI Tách & Đổi Nền Ảnh Studio (Remove BG Pro)")
+    st.caption("⚡ Cơ chế xử lý thông minh kết hợp API siêu tốc. Cực nhẹ và không gây lag máy chủ Cloud.")
     
-    col_config, col_display = St.columns([1, 2])
+    col_config, col_display = st.columns([1, 2])
     
     with col_config:
-        st.markdown("##### 🛠️ Cài đặt bộ lọc AI")
-        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_api")
+        st.markdown("##### 🛠️ Cài đặt bộ lọc")
+        uploaded_bg_img = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_remover_hybrid")
         
         bg_mode = st.selectbox(
             "🎨 Chọn kiểu nền mới:",
-            ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"]
+            ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"],
+            key="bg_mode_idx"
         )
         
         bg_color = "#FFFFFF"
         if bg_mode == "Nền màu đơn sắc (Solid Color)":
-            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF")
+            bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_val")
             
+        # Kiểm tra xem người dùng đã thiết lập cấu hình khóa API cao cấp chưa
+        has_api = "REMOVE_BG_API_KEY" in st.secrets
+        if has_api:
+            st.success("🚀 Đã tìm thấy REMOVE_BG_API_KEY. Chế độ AI Studio sắc nét từng sợi tóc đã sẵn sàng!")
+        else:
+            st.info("💡 Chế độ: Thuật toán đồ họa thông minh (Mặc định). Muốn nét như Studio 100%? Bạn chỉ cần dán khóa REMOVE_BG_API_KEY vào Secrets.")
+
     with col_display:
         if uploaded_bg_img is not None:
             c1, c2 = st.columns(2)
+            
             with c1:
                 st.markdown("🔹 **Ảnh gốc:**")
                 original_image = Image.open(uploaded_bg_img)
                 st.image(original_image, use_container_width=True)
                 
             with c2:
-                st.markdown("✨ **Kết quả từ API:**")
+                st.markdown("✨ **Kết quả xử lý:**")
                 
                 if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True):
-                    # Kiểm tra xem đã cấu hình API Key chưa
-                    if "REMOVE_BG_API_KEY" not in st.secrets:
-                        st.error("❌ Chưa cấu hình REMOVE_BG_API_KEY trong Advanced Settings của Streamlit Cloud!")
-                    else:
-                        with st.spinner("Đang gửi dữ liệu lên Cloud AI xử lý siêu tốc..."):
-                            try:
-                                # Gọi API của remove.bg
+                    with st.spinner("Đang phân tích cấu trúc màu và xử lý điểm ảnh..."):
+                        try:
+                            final_bytes = None
+                            result_image = None
+                            
+                            # CHẾ ĐỘ CHẠY CHÍNH: NẾU CÓ CHÌA KHÓA API REMOVE.BG TRÊN CLOUD
+                            if has_api:
                                 response = requests.post(
                                     'https://api.remove.bg/v1.0/removebg',
                                     files={'image_file': uploaded_bg_img.getvalue()},
                                     data={'size': 'auto'},
                                     headers={'X-Api-Key': st.secrets["PybugvXzq8CQjm4tUUVxVPH1"]},
                                 )
-                                
                                 if response.status_code == 200:
-                                    output_bytes = response.content
-                                    result_image = Image.open(io.BytesIO(output_bytes))
-                                    
-                                    # Xử lý đổ màu nền nếu chọn màu đơn sắc
-                                    if bg_mode == "Nền màu đơn sắc (Solid Color)":
-                                        hex_str = bg_color.lstrip('#')
-                                        rgb_tuple = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
-                                        background = Image.new("RGBA", result_image.size, rgb_tuple + (255,))
-                                        background.paste(result_image, (0, 0), result_image)
-                                        result_image = background
-                                        
-                                        buffer = io.BytesIO()
-                                        result_image.save(buffer, format="PNG")
-                                        final_bytes = buffer.getvalue()
-                                    else:
-                                        final_bytes = output_bytes
-                                    
-                                    st.image(result_image, use_container_width=True)
-                                    st.success("🎉 AI đã xóa nền hoàn hảo trong 0.5 giây!")
-                                    
-                                    st.download_button(
-                                        label="📥 Tải ảnh kết quả về máy (.PNG)",
-                                        data=final_bytes,
-                                        file_name=f"{uploaded_bg_img.name.rsplit('.', 1)[0]}_api_bg.png",
-                                        mime="image/png",
-                                        use_container_width=True
-                                    )
+                                    img_data = response.content
+                                    result_image = Image.open(io.BytesIO(img_data))
                                 else:
-                                    st.error(f"❌ API trả về lỗi (Mã {response.status_code}): {response.text}")
-                            except Exception as e:
-                                st.error(f"❌ Lỗi kết nối API: {str(e)}")
+                                    st.error("⚠️ Khóa API có trục trặc hoặc hết hạn ngạch. Hệ thống tự động chuyển sang Công cụ đồ họa thay thế.")
+                            
+                            # CHẾ ĐỘ DỰ PHÒNG CHỐNG CRASH: TỰ ĐỘNG CHẠY NẾU KHÔNG CÓ KHÓA API
+                            if result_image is None:
+                                # Đọc ảnh và tách nền theo thuật toán ngưỡng sáng trắng (Phổ biến cho ảnh sản phẩm/ảnh thẻ nền sáng)
+                                img = Image.open(uploaded_bg_img).convert("RGBA")
+                                datas = img.getdata()
+                                new_data = []
+                                for item in datas:
+                                    # Nếu điểm ảnh gần sát với màu trắng (nền studio hoặc phông sáng) -> Chuyển thành trong suốt
+                                    if item[0] > 220 and item[1] > 220 and item[2] > 220:
+                                        new_data.append((255, 255, 255, 0))
+                                    else:
+                                        new_data.append(item)
+                                img.putdata(new_data)
+                                result_image = img
+
+                            # THỰC HIỆN ĐỔ MÀU NỀN THEO YÊU CẦU CỦA USER
+                            if bg_mode == "Nền màu đơn sắc (Solid Color)":
+                                hex_str = bg_color.lstrip('#')
+                                rgb_tuple = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+                                background = Image.new("RGBA", result_image.size, rgb_tuple + (255,))
+                                background.paste(result_image, (0, 0), result_image)
+                                result_image = background
+                            
+                            # Chuyển đổi kết quả đồ họa cuối cùng sang dạng Bytes để xuất nút tải
+                            buffer = io.BytesIO()
+                            result_image.save(buffer, format="PNG")
+                            final_bytes = buffer.getvalue()
+                            
+                            # Hiển thị sản phẩm lên giao diện
+                            st.image(result_image, use_container_width=True)
+                            st.success("🎉 Tách và xử lý ảnh hoàn tất!")
+                            
+                            st.download_button(
+                                label="📥 Tải ảnh kết quả về máy (.PNG)",
+                                data=final_bytes,
+                                file_name=f"{uploaded_bg_img.name.rsplit('.', 1)[0]}_studio.png",
+                                mime="image/png",
+                                use_container_width=True
+                            )
+                        except Exception as e:
+                            st.error(f"❌ Lỗi xử lý ảnh: {str(e)}")
         else:
-            st.info("📌 Vui lòng tải một bức ảnh lên để bắt đầu.")
+            st.info("📌 Vui lòng chọn và tải ảnh lên ở cột cấu hình bên trái để bắt đầu.")
