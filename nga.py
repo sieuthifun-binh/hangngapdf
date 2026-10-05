@@ -12,35 +12,108 @@ import requests
 from PIL import Image, ImageOps
 
 # ==============================================================================
-# CẤU HÌNH BAN ĐẦU & LAYOUT HIỆN ĐẠI
+# 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN CAO CẤP (PRO UI)
 # ==============================================================================
-st.set_page_config(page_title="Pro PDF & Image AI Suite", page_icon="⚡", layout="wide")
+st.set_page_config(
+    page_title="Pro PDF & AI Suite", 
+    page_icon="⚡", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 st.markdown("""
 <style>
-    .main-title {
-        font-size: 45px !important;
-        font-weight: 800 !important;
-        color: #1E3A8A !important;
+    /* Nhập font chữ Inter hiện đại */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Môi trường nền chính */
+    .stApp {
+        background-color: #F8FAFC;
+    }
+
+    /* Custom Header Banner */
+    .hero-banner {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #2563EB 100%);
+        padding: 32px 24px;
+        border-radius: 16px;
+        color: white;
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 28px;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+    }
+    .hero-banner h1 {
+        font-size: 36px !important;
+        font-weight: 800 !important;
+        color: #FFFFFF !important;
+        margin-bottom: 8px !important;
+        letter-spacing: -0.5px;
+    }
+    .hero-banner p {
+        font-size: 16px;
+        color: #94A3B8;
+        max-width: 650px;
+        margin: 0 auto 12px auto;
+    }
+    .status-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        color: #38BDF8;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* Định dạng Thanh Tab Chuyên Nghiệp */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #E2E8F0;
+        padding: 6px;
+        border-radius: 12px;
     }
     .stTabs [data-baseweb="tab"] {
-        font-size: 18px !important;
-        font-weight: bold !important;
-        padding: 12px 24px !important;
-    }
-    .stButton>button {
-        font-weight: bold !important;
+        height: 48px;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #475569 !important;
         border-radius: 8px !important;
+        padding: 0px 20px !important;
+        background-color: transparent;
+        border: none !important;
+        transition: all 0.2s ease;
     }
+    .stTabs [aria-selected="true"] {
+        background-color: #FFFFFF !important;
+        color: #2563EB !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Container Nội Dụng Dạng Card Nổi */
+    div[data-testid="stVerticalBlock"] > div.element-container {
+        border-radius: 8px;
+    }
+    
+    /* Tùy chỉnh Nút Bấm Pro */
+    .stButton>button {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        height: 44px !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    /* Footer Copyright */
     .footer-copyright {
         text-align: center;
-        margin-top: 50px;
-        padding: 20px 0;
-        font-size: 14px;
-        color: #6B7280;
-        border-top: 1px solid #E5E7EB;
+        margin-top: 60px;
+        padding: 24px 0;
+        font-size: 13px;
+        color: #64748B;
+        border-top: 1px solid #E2E8F0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -53,33 +126,75 @@ if 'model' not in st.session_state:
     else:
         st.session_state.model = None
 
-st.markdown("<div class='main-title'>🏛️ PRO PDF & IMAGE AI TOOLKIT (6 IN 1)</div>", unsafe_allow_html=True)
+# ==============================================================================
+# 2. THANH SIDEBAR ĐOÀN THỂ & HỆ THỐNG
+# ==============================================================================
+with st.sidebar:
+    st.image("https://img.icons8.com/fluent/96/pdf-2.png", width=64)
+    st.title("Pro PDF Suite")
+    st.caption("Phiên bản Doanh nghiệp v2.5")
+    
+    st.markdown("---")
+    st.markdown("### ⚙️ Trạng thái Hệ thống")
+    
+    # Kiểm tra API Gemini
+    if st.session_state.model:
+        st.success("🟢 **Gemini AI:** Đã kết nối")
+    else:
+        st.warning("🟡 **Gemini AI:** Đang tắt (Thiếu API Key)")
+        
+    # Kiểm tra API Remove BG
+    if "REMOVE_BG_API_KEY" in st.secrets:
+        st.success("🟢 **Remove.bg:** Studio HD Ready")
+    else:
+        st.info("🔵 **Remove.bg:** Đồ họa dự phòng")
+        
+    st.markdown("---")
+    st.markdown("### 💡 Hướng dẫn nhanh")
+    st.markdown("""
+    - **Cắt PDF:** Chọn trang lẻ, chẵn hoặc danh sách trang cụ thể.
+    - **Đổi sang PDF:** Hỗ trợ kéo thả nhiều file Word, Excel, Ảnh để ghép thành 1 PDF duy nhất.
+    - **AI Tóm tắt:** Đọc tự động toàn bộ file PDF và tóm lược ý chính.
+    """)
 
-# Khởi tạo 6 tab chức năng hiện đại theo yêu cầu mới nhất
+# ==============================================================================
+# 3. HEADER BANNER CHUYÊN NGHIỆP
+# ==============================================================================
+st.markdown("""
+<div class='hero-banner'>
+    <h1>🏛️ PRO PDF & AI DOCUMENT WORKSPACE</h1>
+    <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động tích hợp Trí tuệ nhân tạo.</p>
+    <div class='status-badge'>✨ Công nghệ xử lý luồng song song AI Studio</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Khởi tạo 6 tab chức năng
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "✂️ Băm PDF", 
-    "📝 PDF sang Word & AI Tóm tắt", 
+    "📝 PDF sang Word & AI", 
     "📊 AI Trích xuất Excel", 
-    "🗜️ Gộp nhiều file PDF", 
+    "🗜️ Gộp nhiều PDF", 
     "🔄 Đổi đuôi sang PDF",
-    "✨ AI Xóa Nền Ảnh (Remove BG)"
+    "✨ AI Tách Nền Ảnh"
 ])
 
 # ==============================================================================
 # --- TAB 1: BĂM PDF ---
 # ==============================================================================
 with tab1:
-    st.subheader("✂️ Phân tách trang PDF thông minh")
+    st.subheader("✂️️ Phân tách trang PDF thông minh")
+    st.caption("Cắt hoặc tách các trang cụ thể từ file PDF một cách chính xác.")
+    
     uploaded = st.file_uploader("Tải file PDF cần băm:", type="pdf", key="b1")
     mode = st.radio("Chế độ cắt trang:", ["Chẵn", "Lẻ", "Tùy chọn số trang"], key="m1", horizontal=True)
     
     pages = ""
     if mode == 'Tùy chọn số trang':
-        pages = st.text_input("Nhập các trang cần lấy (Ví dụ: 1, 3, 5):", placeholder="Lưu ý: Phân tách bằng dấu phẩy")
+        pages = st.text_input("Nhập các trang cần lấy (Ví dụ: 1, 3, 5):", placeholder="Phân tách các trang bằng dấu phẩy")
     
-    if st.button("Kích hoạt băm file", type="primary"):
+    if st.button("Kích hoạt băm file", type="primary", use_container_width=True):
         if uploaded:
-            with st.spinner("Đang băm nhỏ tài liệu..."):
+            with st.spinner("Đang xử lý tài liệu..."):
                 try:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                         tmp.write(uploaded.getvalue())
@@ -105,15 +220,15 @@ with tab1:
                         if added_pages > 0:
                             out = io.BytesIO()
                             new_pdf.save(out)
-                            st.success(f"🎉 Đã băm xong! Trích xuất thành công {added_pages}/{total} trang.")
-                            st.download_button("📥 Tải về file PDF đã cắt", out.getvalue(), "split_pages.pdf", mime="application/pdf")
+                            st.success(f"🎉 Trích xuất thành công {added_pages}/{total} trang.")
+                            st.download_button("📥 Tải về file PDF đã cắt", out.getvalue(), "split_pages.pdf", mime="application/pdf", use_container_width=True)
                         else:
-                            st.error("❌ Không có trang hợp lệ nào được tìm thấy dựa trên cấu hình của bạn.")
+                            st.error("❌ Không có trang hợp lệ nào được tìm thấy.")
                         
                         pdf.close()
                         os.remove(tmp.name)
                 except Exception as e:
-                    st.error(f"⚠️ Đã xảy ra lỗi khi băm file: {str(e)}")
+                    st.error(f"⚠️ Lỗi xử lý: {str(e)}")
         else:
             st.warning("Vui lòng tải file PDF lên hệ thống trước.")
 
@@ -121,12 +236,14 @@ with tab1:
 # --- TAB 2: PDF SANG WORD & AI TÓM TẮT ---
 # ==============================================================================
 with tab2:
-    st.subheader("📝 Chuyển đổi PDF sang Word kết hợp Trí tuệ nhân tạo")
+    st.subheader("📝 Chuyển đổi PDF sang Word kết hợp AI Tóm tắt")
+    st.caption("Chuyển đổi giữ nguyên cấu trúc định dạng và sử dụng Gemini AI để cô đọng nội dung.")
+    
     f_w = st.file_uploader("Tải file PDF cần chuyển đổi & tóm tắt:", type="pdf", key="w_ai")
     
-    if st.button("Bắt đầu chuyển đổi & Phân tích AI", type="primary"):
+    if st.button("Bắt đầu chuyển đổi & Phân tích AI", type="primary", use_container_width=True):
         if f_w:
-            with st.spinner("⚡ Bước 1: Đang dựng lại cấu hình Layout chuyển đổi sang Word (.docx)..."):
+            with st.spinner("⚡ Bước 1: Đang tái tạo cấu trúc Layout Word (.docx)..."):
                 try:
                     with tempfile.TemporaryDirectory() as tmp_dir:
                         in_path = os.path.join(tmp_dir, "in.pdf")
@@ -140,11 +257,11 @@ with tab2:
                         
                         with open(out_path, "rb") as f_word:
                             word_bytes = f_word.read()
-                        st.success("🎉 Chuyển đổi file sang định dạng Word hoàn tất thành công!")
-                        st.download_button("📥 Tải về file Word (.docx)", word_bytes, f"{f_w.name.rsplit('.', 1)[0]}.docx")
+                        st.success("🎉 Đã chuyển đổi sang Word hoàn tất!")
+                        st.download_button("📥 Tải về file Word (.docx)", word_bytes, f"{f_w.name.rsplit('.', 1)[0]}.docx", use_container_width=True)
                         
                         st.markdown("---")
-                        st.subheader("🤖 Bộ não Trí tuệ nhân tạo (Gemini AI) phân tích sâu:")
+                        st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
                         
                         doc_text = ""
                         with fitz.open(in_path) as doc:
@@ -152,30 +269,32 @@ with tab2:
                                 doc_text += " " + page.get_text()
                         
                         if len(doc_text.strip()) < 15:
-                            st.warning("⚠️ Cảnh báo: Tài liệu này không chứa văn bản kỹ thuật số.")
+                            st.warning("⚠️️ Tài liệu không chứa dữ liệu văn bản kỹ thuật số (Cần dùng OCR).")
                         else:
                             if st.session_state.model is None:
-                                st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong hệ thống st.secrets.")
+                                st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
                             else:
-                                with st.spinner("AI đang đọc toàn văn và cô đọng kiến thức..."):
+                                with st.spinner("AI đang đọc toàn văn và cô đọng nội dung..."):
                                     prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm, ý chính cốt lõi một cách khoa học, chuyên nghiệp bằng Tiếng Việt:\n\n{doc_text[:100000]}"
                                     res = st.session_state.model.generate_content(prompt)
-                                    st.info(f"💡 **BẢN TÓM TẮT CHẤT LƯỢNG CAO TỪ AI:**\n\n{res.text}")
+                                    st.info(f"💡 **BẢN TÓM TẮT TỪ AI:**\n\n{res.text}")
                 except Exception as e:
                     st.error(f"❌ Lỗi hệ thống: {str(e)}")
         else:
-            st.warning("Vui lòng nạp file PDF nguồn.")
+            st.warning("Vui lòng cung cấp file PDF nguồn.")
 
 # ==============================================================================
 # --- TAB 3: AI PDF SANG EXCEL ---
 # ==============================================================================
 with tab3:
     st.subheader("📊 Trích xuất bảng biểu dữ liệu từ PDF sang Excel")
+    st.caption("Quét ma trận cột/dòng để bốc tách bảng tính từ PDF sang file Excel.")
+    
     f_e = st.file_uploader("Tải file PDF chứa bảng dữ liệu:", type="pdf", key="e1")
     
-    if st.button("Kích hoạt bốc tách dữ liệu Excel", type="primary"):
+    if st.button("Kích hoạt bốc tách dữ liệu Excel", type="primary", use_container_width=True):
         if f_e:
-            with st.spinner("Đang quét cấu trúc ô và ma trận dòng/cột trên toàn bộ tài liệu..."):
+            with st.spinner("Đang quét và bốc tách cấu trúc ma trận bảng..."):
                 try:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                         tmp.write(f_e.getvalue())
@@ -199,27 +318,29 @@ with tab3:
                             with pd.ExcelWriter(out, engine='openpyxl') as writer:
                                 df.to_excel(writer, index=False, sheet_name="AI_Extracted")
                             
-                            st.success(f"🎉 Thành công! Đã bốc tách được dữ liệu dạng bảng từ tất cả các trang.")
-                            st.dataframe(df.head(20))
-                            st.download_button("📥 Tải về file Excel (.xlsx)", out.getvalue(), "extracted_data.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            st.success(f"🎉 Bốc tách dữ liệu bảng thành công!")
+                            st.dataframe(df.head(20), use_container_width=True)
+                            st.download_button("📥 Tải về file Excel (.xlsx)", out.getvalue(), "extracted_data.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
                         else:
-                            st.error("❌ Không tìm thấy bảng biểu nào.")
+                            st.error("❌ Không tìm thấy bảng biểu hợp lệ nào trong tài liệu.")
                         
                         os.remove(tmp.name)
                 except Exception as e:
-                    st.error(f"⚠️ Lỗi trích xuất bảng Excel: {str(e)}")
+                    st.error(f"⚠️ Lỗi trích xuất: {str(e)}")
         else:
-            st.warning("Vui lòng cung cấp file PDF chứa bảng tính.")
+            st.warning("Vui lòng tải lên file PDF chứa bảng tính.")
 
 # ==============================================================================
 # --- TAB 4: GỘP NHIỀU FILE PDF ---
 # ==============================================================================
 with tab4:
-    st.subheader("🗜️ Hợp nhất (Merge) nhiều file PDF riêng lẻ")
-    uploaded_merge_files = st.file_uploader("Chọn danh sách các file PDF cần gộp:", type="pdf", accept_multiple_files=True, key="merge_files")
+    st.subheader("🗜️ Hợp nhất (Merge) nhiều file PDF")
+    st.caption("Nối hàng loạt các tập tin PDF riêng lẻ thành một file hoàn chỉnh.")
     
-    if st.button("Bắt đầu tiến trình gộp file", type="primary", disabled=(not uploaded_merge_files)):
-        with st.spinner("Hệ thống đang đồng bộ cấu trúc hình ảnh và font chữ..."):
+    uploaded_merge_files = st.file_uploader("Chọn danh sách file PDF cần gộp:", type="pdf", accept_multiple_files=True, key="merge_files")
+    
+    if st.button("Bắt đầu tiến trình gộp file", type="primary", disabled=(not uploaded_merge_files), use_container_width=True):
+        with st.spinner("Hệ thống đang hợp nhất tài liệu..."):
             try:
                 merged_pdf = pikepdf.Pdf.new()
                 count_files = 0
@@ -239,26 +360,28 @@ with tab4:
                 if total_pages_merged > 0:
                     out_merge = io.BytesIO()
                     merged_pdf.save(out_merge)
-                    st.success(f"🎉 Xuất sắc! Đã nối thành công {count_files} file thành 1 tập tin duy nhất dài {total_pages_merged} trang.")
-                    st.download_button("📥 Tải về file PDF Tổng Hợp", out_merge.getvalue(), "merged_document.pdf", mime="application/pdf")
+                    st.success(f"🎉 Đã gộp {count_files} file thành 1 tài liệu ({total_pages_merged} trang).")
+                    st.download_button("📥 Tải về file PDF Tổng Hợp", out_merge.getvalue(), "merged_document.pdf", mime="application/pdf", use_container_width=True)
                 merged_pdf.close()
             except Exception as e:
-                st.error(f"❌ Lỗi: {str(e)}")
+                st.error(f"❌ Lỗi gộp file: {str(e)}")
 
 # ==============================================================================
-# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (HỖ TRỢ UPLOAD NHIỀU FILE GỘP THÀNH 1 PDF) ---
+# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (UPLOAD NHIỀU FILE GỘP THÀNH 1 PDF) ---
 # ==============================================================================
 with tab5:
-    st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang File PDF")
+    st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang PDF")
+    st.caption("Hỗ trợ tải lên nhiều file (Word, Excel, PNG, JPG) cùng lúc để tạo thành 1 file PDF hoàn chỉnh.")
+    
     files_convert = st.file_uploader(
-        "Tải lên các file nguồn cần chuyển đổi sang PDF (có thể chọn nhiều file):", 
+        "Tải lên các file nguồn (Word, Excel, Ảnh):", 
         type=["docx", "xlsx", "png", "jpg", "jpeg"], 
         accept_multiple_files=True,
         key="conv_source_multi"
     )
     
-    if st.button("Thực hiện chuyển đổi mã hóa & Ghép thành PDF", type="primary", disabled=(not files_convert)):
-        with st.spinner("Đang phân tích định dạng và kết xuất tất cả tập tin sang 1 file PDF hoàn chỉnh..."):
+    if st.button("Chuyển đổi & Ghép thành 1 PDF hoàn chỉnh", type="primary", disabled=(not files_convert), use_container_width=True):
+        with st.spinner("Đang chuyển đổi và đóng gói tất cả file vào 1 bản PDF..."):
             try:
                 final_pdf_doc = fitz.open()
                 processed_count = 0
@@ -267,7 +390,7 @@ with tab5:
                     f_name = f_convert.name
                     ext = f_name.split('.')[-1].lower()
                     
-                    # 1. Xử lý file Ảnh (PNG, JPG, JPEG)
+                    # Xử lý file Ảnh
                     if ext in ["png", "jpg", "jpeg"]:
                         image = Image.open(f_convert)
                         if image.mode in ("RGBA", "P"): 
@@ -280,7 +403,7 @@ with tab5:
                         img_pdf.close()
                         processed_count += 1
                     
-                    # 2. Xử lý file Excel (XLSX)
+                    # Xử lý file Excel
                     elif ext == "xlsx":
                         df_excel = pd.read_excel(f_convert)
                         page = final_pdf_doc.new_page()
@@ -288,7 +411,7 @@ with tab5:
                         page.insert_text((40, 40), f"TÀI LIỆU KẾT XUẤT TỪ FILE EXCEL: {f_name}\n\n" + string_data, fontsize=10)
                         processed_count += 1
                     
-                    # 3. Xử lý file Word (DOCX)
+                    # Xử lý file Word
                     elif ext == "docx":
                         import docx
                         doc_word = docx.Document(f_convert)
@@ -305,32 +428,31 @@ with tab5:
                     final_pdf_doc.save(pdf_out)
                     final_pdf_doc.close()
                     
-                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} tập tin thành 1 file PDF hoàn chỉnh!")
+                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} file thành 1 tài liệu PDF!")
                     st.download_button(
-                        "📥 Tải về file PDF Tổng Hợp", 
+                        "📥 Tải về file PDF Hoàn Chỉnh", 
                         pdf_out.getvalue(), 
                         "converted_combined.pdf", 
-                        mime="application/pdf"
+                        mime="application/pdf",
+                        use_container_width=True
                     )
                 else:
                     st.error("❌ Không có file hợp lệ nào được chuyển đổi.")
                     
             except Exception as e:
-                st.error(f"❌ Có lỗi phát sinh: {str(e)}")
+                st.error(f"❌ Phát sinh lỗi: {str(e)}")
 
 # ==============================================================================
-# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH - PHIÊN BẢN BIẾN THỂ RAW BYTES (CHỐNG LỖI LATIN-1 TUYỆT ĐỐI) ---
+# --- TAB 6: AI XÓA VÀ ĐỔI NỀN ẢNH ---
 # ==============================================================================
 with tab6:
     st.subheader("✨ AI Tách & Đổi Nền Ảnh Studio (Remove BG Pro)")
-    st.caption("⚡ Công nghệ bóc tách dữ liệu Raw Bytes nguyên bản - Cách ly hoàn toàn tên file gốc để triệt tiêu lỗi mã hóa hệ thống.")
+    st.caption("Công nghệ bóc tách dữ liệu Raw Bytes nguyên bản - Cách ly tên file gốc để triệt tiêu lỗi mã hóa hệ thống.")
     
-    col_config, col_display = st.columns([1, 2])
+    col_config, col_display = st.columns([1, 2], gap="large")
     
     with col_config:
         st.markdown("##### 🛠️ Cài đặt bộ lọc")
-        
-        # Tiếp nhận file ảnh đầu vào
         img_file_raw = st.file_uploader("Tải ảnh nguồn lên:", type=["png", "jpg", "jpeg", "webp"], key="bg_uploader_raw_bytes_v6")
         
         bg_mode = st.selectbox(
@@ -344,22 +466,16 @@ with tab6:
             bg_color = st.color_picker("Chọn màu nền mong muốn:", "#FFFFFF", key="bg_col_v6")
             
         has_api = "REMOVE_BG_API_KEY" in st.secrets
-        if has_api:
-            st.success("🚀 Đã tìm thấy REMOVE_BG_API_KEY. Chế độ AI Studio sắc nét từng sợi tóc đã sẵn sàng!")
-        else:
-            st.info("💡 Chế độ: Thuật toán đồ họa thông minh (Mặc định). Muốn nét như Studio 100%? Bạn chỉ cần dán khóa REMOVE_BG_API_KEY vào Secrets.")
 
     with col_display:
         if img_file_raw is not None:
-            c1, c2 = st.columns(2)
+            c1, c2 = st.columns(2, gap="medium")
             
-            # 🛠️ GIẢI PHÁP ĐỘT PHÁ: Chuyển toàn bộ file sang dạng dữ liệu Bytes thuần túy không tên tuổi
             image_pure_bytes = img_file_raw.getvalue()
             image_mime_type = img_file_raw.type
             
             with c1:
                 st.markdown("🔹 **Ảnh gốc:**")
-                # Đọc ảnh từ chuỗi bytes cô lập, hoàn toàn không chạm vào thuộc tính .name gốc có dấu Tiếng Việt
                 original_image = Image.open(io.BytesIO(image_pure_bytes))
                 st.image(original_image, use_container_width=True)
                 
@@ -367,14 +483,13 @@ with tab6:
                 st.markdown("✨ **Kết quả xử lý:**")
                 
                 if st.button("🪄 TIẾN HÀNH XỬ LÝ ẢNH", type="primary", use_container_width=True, key="btn_run_v6"):
-                    with st.spinner("Đang cô lập điểm ảnh và xử lý tách nền..."):
+                    with st.spinner("Đang tách nền điểm ảnh..."):
                         try:
                             final_bytes = None
                             result_image = None
                             
-                            # 1. XỬ LÝ QUA AI CLOUD BẰNG CHUỖI BYTES ĐÃ CÔ LẬP
+                            # 1. AI API Cloud
                             if has_api:
-                                # Đặt hẳn tên cứng là 'image_file.png' để đánh lừa giao thức mạng Header, chặn đứng ký tự Tiếng Việt
                                 response = requests.post(
                                     'https://api.remove.bg/v1.0/removebg',
                                     files={'image_file': ('image_file.png', image_pure_bytes, image_mime_type)},
@@ -384,9 +499,9 @@ with tab6:
                                 if response.status_code == 200:
                                     result_image = Image.open(io.BytesIO(response.content))
                                 else:
-                                    st.warning("⚠️ API gặp sự cố. Hệ thống tự động chuyển sang Công cụ đồ họa dự phòng.")
+                                    st.warning("⚠️ API bận. Tự động chuyển sang Đồ họa dự phòng.")
                             
-                            # 2. ENGINE ĐỒ HỌA DỰ PHÒNG CHỐNG SẬP TRANG WEB
+                            # 2. Engine đồ họa dự phòng
                             if result_image is None:
                                 img = Image.open(io.BytesIO(image_pure_bytes)).convert("RGBA")
                                 datas = img.getdata()
@@ -399,7 +514,7 @@ with tab6:
                                 img.putdata(new_data)
                                 result_image = img
 
-                            # 3. ĐỔ MÀU NỀN MỚI THEO CẤU HÌNH CỦA BÌNH
+                            # 3. Đổ màu nền mới
                             if bg_mode == "Nền màu đơn sắc (Solid Color)":
                                 hex_str = bg_color.lstrip('#')
                                 rgb_tuple = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
@@ -407,22 +522,18 @@ with tab6:
                                 background.paste(result_image, (0, 0), result_image)
                                 result_image = background
                             
-                            # 4. XUẤT DỮ LIỆU ĐỒ HỌA RA BỘ NHỚ RAM
+                            # 4. Xuất kết quả RAM
                             buffer = io.BytesIO()
                             result_image.save(buffer, format="PNG")
                             final_bytes = buffer.getvalue()
                             
-                            # Hiển thị sản phẩm sạch lên màn hình
                             st.image(result_image, use_container_width=True)
-                            st.success("🎉 Tách và xử lý ảnh hoàn tất thành công!")
+                            st.success("🎉 Tách nền hoàn tất!")
                             
-                            # Tạo tên file tải về cố định bằng chữ Tiếng Anh không dấu 100%
-                            fixed_download_name = "ai_studio_output.png"
-                                
                             st.download_button(
-                                label="📥 Tải ảnh kết quả về máy (.PNG)",
+                                label="📥 Tải ảnh kết quả (.PNG)",
                                 data=final_bytes,
-                                file_name=fixed_download_name, # Tên file cực sạch, không bao giờ lỗi
+                                file_name="ai_studio_output.png",
                                 mime="image/png",
                                 use_container_width=True,
                                 key="btn_download_v6"
@@ -433,12 +544,12 @@ with tab6:
             st.info("📌 Vui lòng chọn và tải ảnh lên ở cột cấu hình bên trái để bắt đầu.")
 
 # ==============================================================================
-# --- DÒNG BẢN QUYỀN (COPYRIGHT) Ở CUỐI TRANG ---
+# --- DÒNG BẢN QUYỀN (COPYRIGHT) FOOTER ---
 # ==============================================================================
 st.markdown(
     """
     <div class="footer-copyright">
-        © 2026 Pro PDF & Image AI Suite. All rights reserved. Powered by Vũ Quốc Bình - BHXH CS AN Dương- Hải Phòng.
+        © 2026 Pro PDF & AI Suite. All rights reserved. Powered by Streamlit & AI Cloud Services.
     </div>
     """, 
     unsafe_allow_html=True
