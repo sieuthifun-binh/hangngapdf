@@ -265,64 +265,71 @@ with tab1:
             st.warning("Vui lòng tải file PDF lên hệ thống trước.")
 
 # ==============================================================================
-# --- TAB 2: PDF SANG WORD & AI TÓM TẮT ---
+# --- TAB 2: PDF SANG WORD (CLOUD API) & AI TÓM TẮT ---
 # ==============================================================================
 with tab2:
-    st.subheader("📝 Chuyển đổi PDF sang Word kết hợp AI Tóm tắt")
-    st.caption("Trích xuất văn bản PDF sang file Word (.docx) và sử dụng Gemini AI để cô đọng nội dung.")
+    st.subheader("📝 Chuyển đổi PDF sang Word (Giữ nguyên định dạng) & AI Tóm tắt")
+    st.caption("Chuyển đổi file PDF sang Word (.docx) qua API chuyên nghiệp giữ nguyên bố cục gốc và sử dụng AI tóm tắt.")
     
     f_w = st.file_uploader("Tải file PDF cần chuyển đổi & tóm tắt:", type="pdf", key="w_ai")
     
     if st.button("Bắt đầu chuyển đổi & Phân tích AI", type="primary", use_container_width=True):
         if f_w:
-            with st.spinner("⚡ Bước 1: Đang trích xuất nội dung sang file Word (.docx)..."):
+            with st.spinner("⚡ Bước 1: Đang gửi file lên máy chủ API để chuyển đổi giữ nguyên định dạng..."):
                 try:
-                    import docx
+                    # Kiểm tra API Key của ConvertAPI trong secrets
+                    api_secret = st.secrets.get("CONVERT_API_SECRET", None)
                     
-                    # Đọc văn bản từ PDF bằng PyMuPDF
-                    doc_text = ""
-                    doc_word = docx.Document()
-                    
-                    with fitz.open(stream=f_w.read(), filetype="pdf") as doc:
-                        for page_idx, page in enumerate(doc):
-                            text = page.get_text()
-                            doc_text += " " + text
+                    if not api_secret:
+                        st.error("❌ Chưa cấu hình CONVERT_API_SECRET trong Streamlit Secrets.")
+                    else:
+                        # Gửi file PDF lên ConvertAPI
+                        response = requests.post(
+                            f"https://v2.convertapi.com/convert/pdf/to/docx?Secret={api_secret}",
+                            files={"File": (f_w.name, f_w.getvalue(), "application/pdf")}
+                        )
+                        
+                        if response.status_code == 200:
+                            # Lấy link tải file hoặc dữ liệu binary trực tiếp từ API
+                            result_json = response.json()
+                            file_url = result_json['Files'][0]['Url']
                             
-                            # Ghi vào file Word
-                            doc_word.add_heading(f"Trang {page_idx + 1}", level=2)
-                            doc_word.add_paragraph(text if text.strip() else "[Trang không chứa văn bản kỹ thuật số]")
-                    
-                    # Xuất file Word ra bộ nhớ RAM
-                    out_word = io.BytesIO()
-                    doc_word.save(out_word)
-                    word_bytes = out_word.getvalue()
-                    
-                    st.success("🎉 Đã chuyển đổi nội dung sang Word hoàn tất!")
-                    st.download_button(
-                        "📥 Tải về file Word (.docx)", 
-                        word_bytes, 
-                        f"{f_w.name.rsplit('.', 1)[0]}.docx", 
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True
-                    )
-                    
+                            # Tải dữ liệu file docx về bộ nhớ RAM
+                            docx_data = requests.get(file_url).content
+                            
+                            st.success("🎉 Chuyển đổi thành công! Bố cục và định dạng được giữ nguyên.")
+                            st.download_button(
+                                label="📥 Tải về file Word (.docx)", 
+                                data=docx_data, 
+                                file_name=f"{f_w.name.rsplit('.', 1)[0]}.docx", 
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                use_container_width=True
+                            )
+                        else:
+                            st.error(f"❌ Lỗi từ API Chuyển đổi (Mã lỗi: {response.status_code}): {response.text}")
+
+                    # --- BƯỚC 2: AI TÓM TẮT VĂN BẢN (Dùng PyMuPDF lấy chữ siêu nhanh) ---
                     st.markdown("---")
                     st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
                     
+                    with fitz.open(stream=f_w.getvalue(), filetype="pdf") as doc:
+                        doc_text = " ".join([page.get_text() for page in doc])
+                    
                     if len(doc_text.strip()) < 15:
-                        st.warning("⚠ Tài liệu không chứa dữ liệu văn bản kỹ thuật số.")
+                        st.warning("⚠ Tài liệu không chứa đủ dữ liệu văn bản kỹ thuật số để AI phân tích.")
                     else:
                         if st.session_state.model is None:
                             st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
                         else:
                             with st.spinner("AI đang đọc toàn văn và cô đọng nội dung..."):
-                                prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm, ý chính cốt lõi một cách khoa học, chuyên nghiệp bằng Tiếng Việt:\n\n{doc_text[:100000]}"
+                                prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm chính cốt lõi bằng Tiếng Việt:\n\n{doc_text[:100000]}"
                                 res = st.session_state.model.generate_content(prompt)
                                 st.info(f"💡 **BẢN TÓM TẮT TỪ AI:**\n\n{res.text}")
+
                 except Exception as e:
                     st.error(f"❌ Lỗi hệ thống: {str(e)}")
         else:
-            st.warning("Vui lòng cung cấp file PDF nguồn.")
+            st.warning("Vui lòng tải file PDF nguồn lên hệ thống.")
 
 # ==============================================================================
 # --- TAB 3: AI PDF SANG EXCEL ---
