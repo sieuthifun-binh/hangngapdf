@@ -10,7 +10,7 @@ import pandas as pd
 import google.generativeai as genai
 
 # ==============================================================================
-# --- CẤU HÌNH TRANG STREAMLIT & CUSTOM CSS (SÁAS MODERN UI) ---
+# --- CẤU HÌNH TRANG STREAMLIT & CUSTOM CSS (SAAS MODERN UI) ---
 # ==============================================================================
 st.set_page_config(
     page_title="Pro PDF & Image AI Toolkit",
@@ -87,7 +87,7 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 # --- SIDEBAR & THÔNG TIN HỆ THỐNG ---
 # ==============================================================================
 with st.sidebar:
-    st.title("⚙️ Trạng Thái Hệ Thống")
+    st.title("⚙️️ Trạng Thái Hệ Thống")
     if "GOOGLE_API_KEY" in st.secrets:
         st.success("🟢 Gemini AI: Đã kết nối")
     else:
@@ -253,6 +253,200 @@ with tab2:
                                 with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
                                     for page in doc:
                                         t = page.get_text()
-                                        if t.strip(): doc_word.add_paragraph(t)
+                                        if t.strip(): 
+                                            doc_word.add_paragraph(t)
                                 out_word = io.BytesIO()
-                                doc
+                                doc_word.save(out_word)
+                                st.download_button(
+                                    label="📥 Tải file Word (Văn bản thuần)", 
+                                    data=out_word.getvalue(), 
+                                    file_name=f"{f_w.name.rsplit('.', 1)[0]}_text.docx", 
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.error(f"❌ Lỗi API Convert ({response.status_code}): {response.text}")
+                    except Exception as e:
+                        st.error(f"❌ Lỗi xử lý Cloud API: {str(e)}")
+
+            else:
+                with st.spinner("⚡ Đang trích xuất văn bản bằng thư viện nội bộ..."):
+                    try:
+                        doc_word = docx.Document()
+                        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                            for i, page in enumerate(doc):
+                                doc_word.add_heading(f"Trang {i+1}", level=2)
+                                text = page.get_text()
+                                doc_word.add_paragraph(text if text.strip() else "[Trang không có chữ kỹ thuật số]")
+                        
+                        out_word = io.BytesIO()
+                        doc_word.save(out_word)
+                        st.success("🎉 Trích xuất văn bản Word hoàn tất!")
+                        st.download_button(
+                            label="📥 Tải về file Word (.docx) - Dạng văn bản", 
+                            data=out_word.getvalue(), 
+                            file_name=f"{f_w.name.rsplit('.', 1)[0]}_text.docx", 
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Lỗi trích xuất Local: {str(e)}")
+
+            # --- BƯỚC 2: AI TÓM TẮT VĂN BẢN ---
+            st.markdown("---")
+            st.markdown("### 2. 🤖 Trí tuệ nhân tạo Phân tích & Tóm tắt Multi-Model")
+            
+            try:
+                with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                    full_text = " ".join([page.get_text() for page in doc])
+            except Exception as e:
+                full_text = ""
+                st.error(f"❌ Không thể đọc nội dung file PDF: {str(e)}")
+            
+            if len(full_text.strip()) < 15:
+                st.warning("⚠ Tài liệu không chứa đủ dữ liệu chữ dạng kỹ thuật số để AI đọc.")
+            else:
+                has_api_key = "GOOGLE_API_KEY" in st.secrets
+                if not has_api_key:
+                    st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Streamlit Secrets.")
+                else:
+                    with st.spinner("AI đang nghiên cứu toàn bộ văn bản và viết bản tóm tắt..."):
+                        prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản sau và tóm tắt thành các ý chính cốt lõi bằng Tiếng Việt:\n\n{full_text[:100000]}"
+                        
+                        ai_success = False
+                        last_error_msg = ""
+                        models_to_try = st.session_state.get("gemini_models", PREFERRED_MODELS)
+                        
+                        for model_name in models_to_try:
+                            try:
+                                model_obj = genai.GenerativeModel(model_name)
+                                max_attempts = 2
+                                
+                                for attempt in range(max_attempts):
+                                    try:
+                                        res = model_obj.generate_content(prompt)
+                                        st.info(f"💡 **BẢN TÓM TẮT TỪ AI (Mô hình: `{model_name}`):**\n\n{res.text}")
+                                        ai_success = True
+                                        break
+                                    except Exception as rate_err:
+                                        err_txt = str(rate_err).lower()
+                                        if ("429" in err_txt or "quota" in err_txt or "resourceexhausted" in err_txt) and attempt < max_attempts - 1:
+                                            time.sleep(3)
+                                            continue
+                                        else:
+                                            raise rate_err
+                                if ai_success:
+                                    break
+                            except Exception as m_err:
+                                last_error_msg = str(m_err)
+                                continue
+                        
+                        if not ai_success:
+                            if "quota" in last_error_msg.lower() or "429" in last_error_msg:
+                                st.warning("⚠️ Tất cả mô hình Gemini đều đang chạm giới hạn 5 yêu cầu/phút của gói Free. Vui lòng đợi 30 giây rồi bấm thử lại!")
+                            else:
+                                st.error(f"❌ Lỗi xử lý AI: {last_error_msg}")
+        else:
+            st.warning("Vui lòng tải file PDF lên hệ thống.")
+
+# ------------------------------------------------------------------------------
+# TAB 3: TRÍCH XUẤT EXCEL
+# ------------------------------------------------------------------------------
+with tab3:
+    st.subheader("📊 Trích xuất bảng biểu từ PDF sang Excel")
+    f_excel = st.file_uploader("Tải file PDF chứa bảng biểu:", type="pdf", key="excel_pdf")
+    if f_excel:
+        if st.button("Bắt đầu trích xuất bảng", type="primary"):
+            try:
+                import pdfplumber
+                all_tables = []
+                with pdfplumber.open(f_excel) as pdf:
+                    for i, page in enumerate(pdf.pages):
+                        tables = page.extract_tables()
+                        for table in tables:
+                            df = pd.DataFrame(table[1:], columns=table[0])
+                            all_tables.append(df)
+                
+                if all_tables:
+                    out_excel = io.BytesIO()
+                    with pd.ExcelWriter(out_excel, engine='openpyxl') as writer:
+                        for idx, df_table in enumerate(all_tables):
+                            df_table.to_excel(writer, sheet_name=f"Table_{idx+1}", index=False)
+                    
+                    st.success(f"🎉 Đã tìm thấy và trích xuất thành công {len(all_tables)} bảng biểu!")
+                    st.download_button(
+                        "📥 Tải về file Excel (.xlsx)",
+                        out_excel.getvalue(),
+                        f"{f_excel.name.rsplit('.', 1)[0]}_tables.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.warning("⚠ Không tìm thấy cấu trúc bảng rõ ràng trong tài liệu PDF này.")
+            except Exception as e:
+                st.error(f"❌ Lỗi trích xuất bảng: {str(e)}")
+
+# ------------------------------------------------------------------------------
+# TAB 4: GỘP PDF
+# ------------------------------------------------------------------------------
+with tab4:
+    st.subheader("🧩 Gộp nhiều file PDF thành 1 file duy nhất")
+    files_merge = st.file_uploader("Tải lên danh sách các file PDF:", type="pdf", accept_multiple_files=True, key="merge_pdfs")
+    if files_merge:
+        if st.button("Bắt đầu gộp các file PDF", type="primary"):
+            try:
+                merged_pdf = fitz.open()
+                for file in files_merge:
+                    with fitz.open(stream=file.read(), filetype="pdf") as doc:
+                        merged_pdf.insert_pdf(doc)
+                
+                out_bytes = io.BytesIO()
+                merged_pdf.save(out_bytes)
+                st.success(f"🎉 Đã gộp thành công {len(files_merge)} file PDF!")
+                st.download_button(
+                    "📥 Tải về file PDF đã gộp",
+                    out_bytes.getvalue(),
+                    "merged_document.pdf",
+                    mime="application/pdf"
+                )
+            except Exception as e:
+                st.error(f"❌ Lỗi trong quá trình gộp PDF: {str(e)}")
+
+# ------------------------------------------------------------------------------
+# TAB 5: CHUYỂN SANG PDF
+# ------------------------------------------------------------------------------
+with tab5:
+    st.subheader("🔄 Chuyển đổi Hình ảnh (PNG/JPG) sang PDF")
+    imgs_input = st.file_uploader("Tải lên các file hình ảnh:", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="imgs_pdf")
+    if imgs_input:
+        if st.button("Chuyển đổi thành PDF", type="primary"):
+            try:
+                from PIL import Image
+                image_list = []
+                for img_file in imgs_input:
+                    img = Image.open(img_file).convert('RGB')
+                    image_list.append(img)
+                
+                if image_list:
+                    out_pdf = io.BytesIO()
+                    image_list[0].save(out_pdf, format="PDF", save_all=True, append_images=image_list[1:])
+                    st.success("🎉 Đã chuyển đổi hình ảnh sang PDF thành công!")
+                    st.download_button(
+                        "📥 Tải về file PDF",
+                        out_pdf.getvalue(),
+                        "converted_images.pdf",
+                        mime="application/pdf"
+                    )
+            except Exception as e:
+                st.error(f"❌ Lỗi chuyển đổi hình ảnh: {str(e)}")
+
+# ------------------------------------------------------------------------------
+# TAB 6: AI XÓA PHÔNG
+# ------------------------------------------------------------------------------
+with tab6:
+    st.subheader("🖼️ Trí tuệ nhân tạo Xóa phông hình ảnh")
+    st.caption("Trích xuất chủ thể và loại bỏ nền hình ảnh tự động.")
+    f_bg = st.file_uploader("Tải ảnh cần xóa phông (PNG, JPG):", type=["png", "jpg", "jpeg"], key="bg_img")
+    if f_bg:
+        st.image(f_bg, caption="Ảnh gốc tải lên", use_container_width=True)
+        if st.button("Bắt đầu xóa phông nền", type="primary"):
+            st.info("💡 Tính năng xóa phông nâng cao đang kết nối module xử lý. Vui lòng đảm bảo cấu hình dịch vụ AI background removal!")
