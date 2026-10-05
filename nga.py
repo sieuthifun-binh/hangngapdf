@@ -9,13 +9,13 @@ from pdf2docx import Converter
 import tempfile
 import os
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance
 
 # ==============================================================================
 # 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN 3D CAO CẤP (3D NEUMORPHIC UI)
 # ==============================================================================
 st.set_page_config(
-    page_title="Pro PDF & AI Suite 3D", 
+    page_title="Pro PDF & AI Suite 3D Ultra", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -160,18 +160,16 @@ if 'model' not in st.session_state:
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/96/pdf-2.png", width=64)
     st.title("Pro PDF Suite 3D")
-    st.caption("Phiên bản Doanh nghiệp 3D v3.0")
+    st.caption("Phiên bản Doanh nghiệp 3D v4.0 Ultra")
     
     st.markdown("---")
     st.markdown("### ⚙️ Trạng thái Hệ thống")
     
-    # Kiểm tra API Gemini
     if st.session_state.model:
         st.success("🟢 **Gemini AI:** Đã kết nối")
     else:
         st.warning("🟡 **Gemini AI:** Đang tắt (Thiếu API Key)")
         
-    # Kiểm tra API Remove BG
     if "REMOVE_BG_API_KEY" in st.secrets:
         st.success("🟢 **Remove.bg:** Studio HD Ready")
     else:
@@ -180,9 +178,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 💡 Hướng dẫn nhanh")
     st.markdown("""
-    - **Cắt PDF:** Tách các trang chẵn/lẻ hoặc theo danh sách tùy chọn.
-    - **Đổi sang PDF:** Tải nhiều file Word, Excel, Ảnh để gộp thành 1 PDF duy nhất.
-    - **AI Tóm tắt:** Đọc tự động toàn bộ nội dung PDF và xuất ý chính.
+    - **Chỉnh sửa ảnh:** Tùy chỉnh Độ sáng, Tương phản, Làm nét, Màu sắc & Xoay góc ảnh trước khi gộp PDF.
+    - **Cắt cúp linh hoạt:** Loại bỏ lề ảnh thừa chỉ bằng vài thao tác.
+    - **Xử lý tài liệu:** Cắt, gộp, trích xuất Excel & AI Tóm tắt mạnh mẽ.
     """)
 
 # ==============================================================================
@@ -190,9 +188,9 @@ with st.sidebar:
 # ==============================================================================
 st.markdown("""
 <div class='hero-banner'>
-    <h1>🏛️ CHÀO MỪNG BẠN ĐẾN VỚI NHÀ CỦA TÔI </h1>
-    <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động với giao diện dập nổi 3D.</p>
-    <div class='status-badge'>✨ Không gian làm việc 3D Neumorphic Interactive</div>
+    <h1>🏛️ PRO PDF & AI WORKSPACE 3D ULTRA</h1>
+    <p>Hệ thống xử lý PDF tích hợp Trí tuệ nhân tạo và Bộ công cụ biên tập/tối ưu hóa hình ảnh chuyên nghiệp.</p>
+    <div class='status-badge'>✨ Đã tích hợp Studio Chỉnh sửa Màu sắc & Ánh sáng Ảnh</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -395,11 +393,11 @@ with tab4:
                 st.error(f"❌ Lỗi gộp file: {str(e)}")
 
 # ==============================================================================
-# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF ---
+# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (CẮT, CHỈNH SÁNG & MÀU SẮC ẢNH) ---
 # ==============================================================================
 with tab5:
     st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang PDF")
-    st.caption("Hỗ trợ tải lên nhiều file (Word, Excel, PNG, JPG) cùng lúc để tạo thành 1 file PDF hoàn chỉnh.")
+    st.caption("Hỗ trợ tải lên nhiều file (Word, Excel, Ảnh). Tích hợp Studio chỉnh sửa Ánh sáng, Màu sắc, Xoay & Cắt ảnh nâng cao trước khi xuất PDF.")
     
     files_convert = st.file_uploader(
         "Tải lên các file nguồn (Word, Excel, Ảnh):", 
@@ -408,6 +406,85 @@ with tab5:
         key="conv_source_multi"
     )
     
+    # Bộ lưu trữ các ảnh đã qua chỉnh sửa
+    edited_images_dict = {}
+
+    if files_convert:
+        image_files = [f for f in files_convert if f.name.rsplit('.', 1)[-1].lower() in ["png", "jpg", "jpeg"]]
+        
+        # Nếu có file ảnh, hiển thị STUDIO CHỈNH SỬA ẢNH
+        if image_files:
+            st.markdown("---")
+            st.markdown("##### 🎨 STUDIO BIÊN TẬP VÀ TỐI ƯU HÓA HÌNH ẢNH")
+            
+            for idx, img_file in enumerate(image_files):
+                st.markdown(f"**📷 File ảnh {idx+1}: `{img_file.name}`**")
+                
+                # Đọc ảnh gốc
+                img_raw = Image.open(img_file)
+                if img_raw.mode in ("RGBA", "P"):
+                    img_raw = img_raw.convert("RGB")
+                
+                orig_w, orig_h = img_raw.size
+                
+                tab_crop, tab_color = st.tabs([f"✂️ Cắt & Xoay [{idx+1}]", f"☀️ Ánh sáng & Màu sắc [{idx+1}]"])
+                
+                # CẤU HÌNH BIÊN TẬP HÌNH ẢNH
+                with tab_crop:
+                    col_crop_cfg, col_crop_prev = st.columns([1, 1], gap="medium")
+                    with col_crop_cfg:
+                        st.markdown("🛠️ **Cắt cúp & Góc xoay:**")
+                        crop_left = st.slider(f"Cắt lề Trái (%)", 0, 45, 0, key=f"cL_{idx}")
+                        crop_right = st.slider(f"Cắt lề Phải (%)", 0, 45, 0, key=f"cR_{idx}")
+                        crop_top = st.slider(f"Cắt lề Trên (%)", 0, 45, 0, key=f"cT_{idx}")
+                        crop_bottom = st.slider(f"Cắt lề Dưới (%)", 0, 45, 0, key=f"cB_{idx}")
+                        
+                        rotate_angle = st.selectbox(f"Xoay chiều ảnh:", [0, 90, 180, 270], key=f"rot_{idx}")
+                    
+                    with col_crop_prev:
+                        st.info("Vùng ảnh sẽ được cắt theo đúng tỷ lệ điều chỉnh bên trái.")
+
+                with tab_color:
+                    col_col_cfg, col_col_prev = st.columns([1, 1], gap="medium")
+                    with col_col_cfg:
+                        st.markdown("🎛️ **Bộ lọc Ánh sáng & Màu sắc:**")
+                        brightness = st.slider(f"Độ sáng (Brightness)", 0.2, 2.0, 1.0, 0.05, key=f"br_{idx}")
+                        contrast = st.slider(f"Độ tương phản (Contrast)", 0.2, 2.0, 1.0, 0.05, key=f"ct_{idx}")
+                        sharpness = st.slider(f"Độ sắc nét (Sharpness)", 0.0, 3.0, 1.0, 0.1, key=f"sp_{idx}")
+                        color_sat = st.slider(f"Độ bão hòa màu (Color)", 0.0, 2.0, 1.0, 0.05, key=f"sat_{idx}", help="Đưa về 0.0 để chuyển thành ảnh Trắng Đen (Grayscale)")
+
+                # TIẾN HÀNH XỬ LÝ NÂNG CAO
+                # 1. Xoay góc
+                processed_img = img_raw.rotate(-rotate_angle, expand=True) if rotate_angle != 0 else img_raw
+                cur_w, cur_h = processed_img.size
+                
+                # 2. Cắt cúp
+                left_px = int(cur_w * (crop_left / 100))
+                right_px = int(cur_w * (1 - crop_right / 100))
+                top_px = int(cur_h * (crop_top / 100))
+                bottom_px = int(cur_h * (1 - crop_bottom / 100))
+                
+                if right_px > left_px and bottom_px > top_px:
+                    processed_img = processed_img.crop((left_px, top_px, right_px, bottom_px))
+
+                # 3. Chỉnh Ánh sáng, Tương phản, Sắc nét & Màu sắc
+                if brightness != 1.0:
+                    processed_img = ImageEnhance.Brightness(processed_img).enhance(brightness)
+                if contrast != 1.0:
+                    processed_img = ImageEnhance.Contrast(processed_img).enhance(contrast)
+                if sharpness != 1.0:
+                    processed_img = ImageEnhance.Sharpness(processed_img).enhance(sharpness)
+                if color_sat != 1.0:
+                    processed_img = ImageEnhance.Color(processed_img).enhance(color_sat)
+
+                # Hiển thị kết quả trực quan
+                st.markdown("✨ **XEM TRƯỚC KẾT QUẢ HIỆU CHỈNH THỜI GIAN THỰC:**")
+                st.image(processed_img, caption=f"Ảnh đã tối ưu ({processed_img.width}x{processed_img.height} px)", use_container_width=True)
+                
+                # Lưu vào Dictionary tạm thời
+                edited_images_dict[img_file.name] = processed_img
+                st.markdown("---")
+
     if st.button("Chuyển đổi & Ghép thành 1 PDF hoàn chỉnh", type="primary", disabled=(not files_convert), use_container_width=True):
         with st.spinner("Đang chuyển đổi và đóng gói tất cả file vào 1 bản PDF..."):
             try:
@@ -418,20 +495,23 @@ with tab5:
                     f_name = f_convert.name
                     ext = f_name.split('.')[-1].lower()
                     
-                    # Xử lý file Ảnh
+                    # 1. Xử lý file Ảnh (Sử dụng bản đã hiệu chỉnh màu sắc/cắt cúp nếu có)
                     if ext in ["png", "jpg", "jpeg"]:
-                        image = Image.open(f_convert)
-                        if image.mode in ("RGBA", "P"): 
-                            image = image.convert("RGB")
+                        if f_name in edited_images_dict:
+                            image_to_use = edited_images_dict[f_name]
+                        else:
+                            image_to_use = Image.open(f_convert)
+                            if image_to_use.mode in ("RGBA", "P"): 
+                                image_to_use = image_to_use.convert("RGB")
                         
                         img_bytes = io.BytesIO()
-                        image.save(img_bytes, format="PDF")
+                        image_to_use.save(img_bytes, format="PDF")
                         img_pdf = fitz.open("pdf", img_bytes.getvalue())
                         final_pdf_doc.insert_pdf(img_pdf)
                         img_pdf.close()
                         processed_count += 1
                     
-                    # Xử lý file Excel
+                    # 2. Xử lý file Excel
                     elif ext == "xlsx":
                         df_excel = pd.read_excel(f_convert)
                         page = final_pdf_doc.new_page()
@@ -439,7 +519,7 @@ with tab5:
                         page.insert_text((40, 40), f"TÀI LIỆU KẾT XUẤT TỪ FILE EXCEL: {f_name}\n\n" + string_data, fontsize=10)
                         processed_count += 1
                     
-                    # Xử lý file Word
+                    # 3. Xử lý file Word
                     elif ext == "docx":
                         import docx
                         doc_word = docx.Document(f_convert)
@@ -456,7 +536,7 @@ with tab5:
                     final_pdf_doc.save(pdf_out)
                     final_pdf_doc.close()
                     
-                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} file thành 1 tài liệu PDF!")
+                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} file thành 1 tài liệu PDF hoàn chỉnh!")
                     st.download_button(
                         "📥 Tải về file PDF Hoàn Chỉnh", 
                         pdf_out.getvalue(), 
@@ -577,7 +657,7 @@ with tab6:
 st.markdown(
     """
     <div class="footer-copyright">
-        © 2026 Pro PDF & AI Suite 3D. All rights reserved. Powered by VŨ QUỐC BÌNH.
+        © 2026 Pro PDF & AI Suite 3D Ultra. All rights reserved. Powered by Streamlit & AI Cloud Services.
     </div>
     """, 
     unsafe_allow_html=True
