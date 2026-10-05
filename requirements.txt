@@ -4,7 +4,6 @@ pdfplumber
 pandas
 PyMuPDF
 google-generativeai
-pdf2docx
 requests
 Pillow
 openpyxl
