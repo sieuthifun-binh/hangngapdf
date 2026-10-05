@@ -3,7 +3,7 @@ pikepdf
 pdfplumber
 pandas
 PyMuPDF
-google-generativeai>=0.8.0
+google-generativeai
 requests
 Pillow
 openpyxl
