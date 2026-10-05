@@ -10,12 +10,16 @@ import tempfile
 import os
 import requests
 from PIL import Image, ImageOps, ImageEnhance
+try:
+    from streamlit_cropper import st_cropper
+except ImportError:
+    st_cropper = None
 
 # ==============================================================================
 # 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN 3D CAO CẤP (3D NEUMORPHIC UI)
 # ==============================================================================
 st.set_page_config(
-    page_title="Pro PDF & AI Suite 3D Ultra", 
+    page_title="Pro PDF & AI Suite 3D Pro", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -160,7 +164,7 @@ if 'model' not in st.session_state:
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/96/pdf-2.png", width=64)
     st.title("Pro PDF Suite 3D")
-    st.caption("Phiên bản Doanh nghiệp 3D v4.0 Ultra")
+    st.caption("Phiên bản Doanh nghiệp 3D v3.5")
     
     st.markdown("---")
     st.markdown("### ⚙️ Trạng thái Hệ thống")
@@ -178,9 +182,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 💡 Hướng dẫn nhanh")
     st.markdown("""
-    - **Chỉnh sửa ảnh:** Tùy chỉnh Độ sáng, Tương phản, Làm nét, Màu sắc & Xoay góc ảnh trước khi gộp PDF.
-    - **Cắt cúp linh hoạt:** Loại bỏ lề ảnh thừa chỉ bằng vài thao tác.
-    - **Xử lý tài liệu:** Cắt, gộp, trích xuất Excel & AI Tóm tắt mạnh mẽ.
+    - **Chỉnh sửa Ảnh sang PDF:** Co dãn bằng chuột, tinh chỉnh màu sắc, độ sáng, xoay góc trực quan trước khi đóng gói PDF.
+    - **Cắt PDF:** Tách các trang chẵn/lẻ hoặc theo danh sách chọn.
+    - **AI Tóm tắt:** Tự động tổng hợp luận điểm chính của tài liệu.
     """)
 
 # ==============================================================================
@@ -188,9 +192,9 @@ with st.sidebar:
 # ==============================================================================
 st.markdown("""
 <div class='hero-banner'>
-    <h1>🏛️ PRO PDF & AI WORKSPACE 3D ULTRA</h1>
-    <p>Hệ thống xử lý PDF tích hợp Trí tuệ nhân tạo và Bộ công cụ biên tập/tối ưu hóa hình ảnh chuyên nghiệp.</p>
-    <div class='status-badge'>✨ Đã tích hợp Studio Chỉnh sửa Màu sắc & Ánh sáng Ảnh</div>
+    <h1>🏛️ PRO PDF & AI WORKSPACE 3D PRO</h1>
+    <p>Nền tảng xử lý tài liệu, biên tập hình ảnh trực quan và trích xuất dữ liệu tích hợp AI.</p>
+    <div class='status-badge'>✨ Công nghệ Biên tập Ảnh Trực quan & Đóng gói PDF</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -393,100 +397,94 @@ with tab4:
                 st.error(f"❌ Lỗi gộp file: {str(e)}")
 
 # ==============================================================================
-# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (CẮT, CHỈNH SÁNG & MÀU SẮC ẢNH) ---
+# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (BỔ SUNG HIỂN THỊ XEM TRƯỚC 30% & CHỈNH SỬA ẢNH TRỰC QUAN) ---
 # ==============================================================================
 with tab5:
     st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang PDF")
-    st.caption("Hỗ trợ tải lên nhiều file (Word, Excel, Ảnh). Tích hợp Studio chỉnh sửa Ánh sáng, Màu sắc, Xoay & Cắt ảnh nâng cao trước khi xuất PDF.")
+    st.caption("Nâng cấp: Tùy chỉnh màu sắc, độ sáng, xoay ảnh, co dãn/cắt ảnh bằng chuột và xem trước 30% trước khi đóng gói PDF.")
     
     files_convert = st.file_uploader(
-        "Tải lên các file nguồn (Word, Excel, Ảnh):", 
+        "Tải lên các file nguồn (Word, Excel, Ảnh PNG/JPG):", 
         type=["docx", "xlsx", "png", "jpg", "jpeg"], 
         accept_multiple_files=True,
-        key="conv_source_multi"
+        key="conv_source_multi_v2"
     )
     
-    # Bộ lưu trữ các ảnh đã qua chỉnh sửa
-    edited_images_dict = {}
-
+    modified_images_map = {}
+    
     if files_convert:
-        image_files = [f for f in files_convert if f.name.rsplit('.', 1)[-1].lower() in ["png", "jpg", "jpeg"]]
+        image_files = [f for f in files_convert if f.name.split('.')[-1].lower() in ["png", "jpg", "jpeg"]]
         
-        # Nếu có file ảnh, hiển thị STUDIO CHỈNH SỬA ẢNH
         if image_files:
             st.markdown("---")
-            st.markdown("##### 🎨 STUDIO BIÊN TẬP VÀ TỐI ƯU HÓA HÌNH ẢNH")
+            st.markdown("### 🖼️ BỘ BIÊN TẬP & XEM TRƯỚC HÌNH ẢNH (30% GỐC)")
             
             for idx, img_file in enumerate(image_files):
-                st.markdown(f"**📷 File ảnh {idx+1}: `{img_file.name}`**")
+                ext = img_file.name.split('.')[-1].lower()
+                st.markdown(f"#### 📄 Tập tin {idx + 1}: `{img_file.name}`")
                 
-                # Đọc ảnh gốc
-                img_raw = Image.open(img_file)
-                if img_raw.mode in ("RGBA", "P"):
-                    img_raw = img_raw.convert("RGB")
-                
-                orig_w, orig_h = img_raw.size
-                
-                tab_crop, tab_color = st.tabs([f"✂️ Cắt & Xoay [{idx+1}]", f"☀️ Ánh sáng & Màu sắc [{idx+1}]"])
-                
-                # CẤU HÌNH BIÊN TẬP HÌNH ẢNH
-                with tab_crop:
-                    col_crop_cfg, col_crop_prev = st.columns([1, 1], gap="medium")
-                    with col_crop_cfg:
-                        st.markdown("🛠️ **Cắt cúp & Góc xoay:**")
-                        crop_left = st.slider(f"Cắt lề Trái (%)", 0, 45, 0, key=f"cL_{idx}")
-                        crop_right = st.slider(f"Cắt lề Phải (%)", 0, 45, 0, key=f"cR_{idx}")
-                        crop_top = st.slider(f"Cắt lề Trên (%)", 0, 45, 0, key=f"cT_{idx}")
-                        crop_bottom = st.slider(f"Cắt lề Dưới (%)", 0, 45, 0, key=f"cB_{idx}")
-                        
-                        rotate_angle = st.selectbox(f"Xoay chiều ảnh:", [0, 90, 180, 270], key=f"rot_{idx}")
+                # Tải ảnh gốc
+                raw_img = Image.open(img_file)
+                if raw_img.mode in ("RGBA", "P"):
+                    raw_img = raw_img.convert("RGB")
                     
-                    with col_crop_prev:
-                        st.info("Vùng ảnh sẽ được cắt theo đúng tỷ lệ điều chỉnh bên trái.")
-
-                with tab_color:
-                    col_col_cfg, col_col_prev = st.columns([1, 1], gap="medium")
-                    with col_col_cfg:
-                        st.markdown("🎛️ **Bộ lọc Ánh sáng & Màu sắc:**")
-                        brightness = st.slider(f"Độ sáng (Brightness)", 0.2, 2.0, 1.0, 0.05, key=f"br_{idx}")
-                        contrast = st.slider(f"Độ tương phản (Contrast)", 0.2, 2.0, 1.0, 0.05, key=f"ct_{idx}")
-                        sharpness = st.slider(f"Độ sắc nét (Sharpness)", 0.0, 3.0, 1.0, 0.1, key=f"sp_{idx}")
-                        color_sat = st.slider(f"Độ bão hòa màu (Color)", 0.0, 2.0, 1.0, 0.05, key=f"sat_{idx}", help="Đưa về 0.0 để chuyển thành ảnh Trắng Đen (Grayscale)")
-
-                # TIẾN HÀNH XỬ LÝ NÂNG CAO
-                # 1. Xoay góc
-                processed_img = img_raw.rotate(-rotate_angle, expand=True) if rotate_angle != 0 else img_raw
-                cur_w, cur_h = processed_img.size
+                orig_w, orig_h = raw_img.size
+                preview_w = int(orig_w * 0.3)
+                preview_h = int(orig_h * 0.3)
                 
-                # 2. Cắt cúp
-                left_px = int(cur_w * (crop_left / 100))
-                right_px = int(cur_w * (1 - crop_right / 100))
-                top_px = int(cur_h * (crop_top / 100))
-                bottom_px = int(cur_h * (1 - crop_bottom / 100))
+                col_editor, col_preview = st.columns([3, 2], gap="large")
                 
-                if right_px > left_px and bottom_px > top_px:
-                    processed_img = processed_img.crop((left_px, top_px, right_px, bottom_px))
+                with col_editor:
+                    st.markdown("##### 🛠️ Cắt / Co dãn vùng ảnh bằng chuột:")
+                    
+                    if st_cropper is not None:
+                        # Cho phép người dùng kéo thả hình chữ nhật co dãn cắt ảnh
+                        cropped_img = st_cropper(
+                            raw_img,
+                            realtime_update=True,
+                            box_color="#2563EB",
+                            aspect_ratio=None,
+                            key=f"crop_{idx}_{img_file.name}"
+                        )
+                    else:
+                        st.info("💡 Mẹo: Cài đặt thêm `pip install streamlit-cropper` để dùng tính năng kéo thả co dãn ảnh bằng chuột.")
+                        cropped_img = raw_img
+                    
+                    st.markdown("##### 🎛️ Bộ tinh chỉnh màu sắc & góc xoay:")
+                    c_s1, c_s2 = st.columns(2)
+                    with c_s1:
+                        angle = st.slider("🔄 Xoay góc (Độ):", 0, 360, 0, step=90, key=f"rot_{idx}")
+                        brightness = st.slider("☀️ Độ sáng:", 0.2, 2.0, 1.0, step=0.1, key=f"bright_{idx}")
+                    with c_s2:
+                        contrast = st.slider("🌓 Độ tương phản:", 0.2, 2.0, 1.0, step=0.1, key=f"contrast_{idx}")
+                        color_sat = st.slider("🎨 Bão hòa màu:", 0.0, 2.0, 1.0, step=0.1, key=f"sat_{idx}")
+                    
+                    # Áp dụng các tinh chỉnh hình ảnh
+                    edited_img = cropped_img.copy()
+                    if angle != 0:
+                        edited_img = edited_img.rotate(-angle, expand=True)
+                    
+                    if brightness != 1.0:
+                        edited_img = ImageEnhance.Brightness(edited_img).enhance(brightness)
+                    if contrast != 1.0:
+                        edited_img = ImageEnhance.Contrast(edited_img).enhance(contrast)
+                    if color_sat != 1.0:
+                        edited_img = ImageEnhance.Color(edited_img).enhance(color_sat)
+                    
+                    # Lưu lại bản ảnh sau khi chỉnh sửa để xuất PDF
+                    modified_images_map[img_file.name] = edited_img
 
-                # 3. Chỉnh Ánh sáng, Tương phản, Sắc nét & Màu sắc
-                if brightness != 1.0:
-                    processed_img = ImageEnhance.Brightness(processed_img).enhance(brightness)
-                if contrast != 1.0:
-                    processed_img = ImageEnhance.Contrast(processed_img).enhance(contrast)
-                if sharpness != 1.0:
-                    processed_img = ImageEnhance.Sharpness(processed_img).enhance(sharpness)
-                if color_sat != 1.0:
-                    processed_img = ImageEnhance.Color(processed_img).enhance(color_sat)
-
-                # Hiển thị kết quả trực quan
-                st.markdown("✨ **XEM TRƯỚC KẾT QUẢ HIỆU CHỈNH THỜI GIAN THỰC:**")
-                st.image(processed_img, caption=f"Ảnh đã tối ưu ({processed_img.width}x{processed_img.height} px)", use_container_width=True)
+                with col_preview:
+                    st.markdown("##### 🔍 Xem trước (30% Kích thước chuẩn):")
+                    # Hiển thị xem trước thu nhỏ đúng 30%
+                    st.caption(f"Kích thước gốc: {orig_w}x{orig_h}px ➔ Hiển thị xem trước (30%): {preview_w}x{preview_h}px")
+                    st.image(edited_img, width=preview_w)
                 
-                # Lưu vào Dictionary tạm thời
-                edited_images_dict[img_file.name] = processed_img
                 st.markdown("---")
 
-    if st.button("Chuyển đổi & Ghép thành 1 PDF hoàn chỉnh", type="primary", disabled=(not files_convert), use_container_width=True):
-        with st.spinner("Đang chuyển đổi và đóng gói tất cả file vào 1 bản PDF..."):
+    # Nút bấm xuất file PDF tổng hợp
+    if st.button("Chuyển đổi & Đóng gói tất cả sang 1 file PDF", type="primary", disabled=(not files_convert), use_container_width=True):
+        with st.spinner("Đang biên dịch và đóng gói tất cả file nguồn vào PDF hoàn chỉnh..."):
             try:
                 final_pdf_doc = fitz.open()
                 processed_count = 0
@@ -495,17 +493,17 @@ with tab5:
                     f_name = f_convert.name
                     ext = f_name.split('.')[-1].lower()
                     
-                    # 1. Xử lý file Ảnh (Sử dụng bản đã hiệu chỉnh màu sắc/cắt cúp nếu có)
+                    # 1. Xử lý Ảnh (Sử dụng bản ảnh đã qua tinh chỉnh nếu có)
                     if ext in ["png", "jpg", "jpeg"]:
-                        if f_name in edited_images_dict:
-                            image_to_use = edited_images_dict[f_name]
+                        if f_name in modified_images_map:
+                            image_to_save = modified_images_map[f_name]
                         else:
-                            image_to_use = Image.open(f_convert)
-                            if image_to_use.mode in ("RGBA", "P"): 
-                                image_to_use = image_to_use.convert("RGB")
+                            image_to_save = Image.open(f_convert)
+                            if image_to_save.mode in ("RGBA", "P"):
+                                image_to_save = image_to_save.convert("RGB")
                         
                         img_bytes = io.BytesIO()
-                        image_to_use.save(img_bytes, format="PDF")
+                        image_to_save.save(img_bytes, format="PDF")
                         img_pdf = fitz.open("pdf", img_bytes.getvalue())
                         final_pdf_doc.insert_pdf(img_pdf)
                         img_pdf.close()
@@ -536,11 +534,11 @@ with tab5:
                     final_pdf_doc.save(pdf_out)
                     final_pdf_doc.close()
                     
-                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} file thành 1 tài liệu PDF hoàn chỉnh!")
+                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} tập tin thành 1 file PDF hoàn chỉnh!")
                     st.download_button(
                         "📥 Tải về file PDF Hoàn Chỉnh", 
                         pdf_out.getvalue(), 
-                        "converted_combined.pdf", 
+                        "converted_combined_pro.pdf", 
                         mime="application/pdf",
                         use_container_width=True
                     )
@@ -657,7 +655,7 @@ with tab6:
 st.markdown(
     """
     <div class="footer-copyright">
-        © 2026 Pro PDF & AI Suite 3D Ultra. All rights reserved. Powered by Streamlit & AI Cloud Services.
+        © 2026 Pro PDF & AI Suite 3D Pro. All rights reserved. Powered by Streamlit & AI Cloud Services.
     </div>
     """, 
     unsafe_allow_html=True
