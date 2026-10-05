@@ -149,7 +149,14 @@ st.markdown("""
 if 'model' not in st.session_state:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        st.session_state.model = genai.GenerativeModel('gemini-1.5-flash')
+        # Thử sử dụng mô hình gemini-2.5-flash hoặc gemini-2.0-flash chuẩn
+        try:
+            st.session_state.model = genai.GenerativeModel('gemini-2.5-flash')
+        except Exception:
+            try:
+                st.session_state.model = genai.GenerativeModel('gemini-2.0-flash')
+            except Exception:
+                st.session_state.model = genai.GenerativeModel('gemini-1.5-flash-latest')
     else:
         st.session_state.model = None
 
