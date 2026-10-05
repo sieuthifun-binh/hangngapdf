@@ -15,8 +15,89 @@ import google.generativeai as genai
 st.set_page_config(
     page_title="Pro PDF & Image AI Toolkit",
     page_icon="📄",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# Thêm CSS tùy chỉnh cho giao diện Hiện Đại & Đẳng Cấp
+st.markdown("""
+<style>
+    /* 1. Đổi font chữ & background tổng thể */
+    .main {
+        background-color: #f8f9fa;
+    }
+    
+    /* 2. Style cho Tiêu đề chính Gradient */
+    .main-title {
+        font-family: 'Inter', sans-serif;
+        font-weight: 800;
+        font-size: 2.6rem;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.2rem;
+    }
+    .sub-title {
+        color: #6c757d;
+        font-size: 1.05rem;
+        margin-bottom: 2rem;
+    }
+
+    /* 3. Style Thẻ Card chứa nội dung */
+    .css-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e9ecef;
+        margin-bottom: 20px;
+    }
+
+    /* 4. Tùy chỉnh Nút bấm Primary */
+    .stButton>button[kind="primary"] {
+        background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(71, 118, 230, 0.3);
+    }
+    .stButton>button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(71, 118, 230, 0.4);
+    }
+
+    /* 5. Tùy chỉnh Các Tab Header */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #eef2f5;
+        padding: 6px;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        border-radius: 8px;
+        font-weight: 600;
+        color: #495057;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #ffffff !important;
+        color: #4776E6 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* 6. Hộp Thông báo AI */
+    .ai-box {
+        background: #f0f7ff;
+        border-left: 4px solid #4776E6;
+        padding: 16px;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+</style>
+""", unsafe_style_text=True)
 
 # ==============================================================================
 # --- KHỞI TẠO DỮ LIỆU SESSION STATE & GEMINI AI ---
@@ -43,17 +124,17 @@ if "GOOGLE_API_KEY" in st.secrets:
 # ==============================================================================
 # --- TIEU DE VA GIAO DIEN CHINH ---
 # ==============================================================================
-st.title("🛠️ Pro PDF & Image AI Toolkit")
-st.caption("Hệ thống xử lý tài liệu PDF, hình ảnh chuyên nghiệp tích hợp Trí tuệ nhân tạo Multi-Model")
+st.markdown('<div class="main-title">⚡ Pro PDF & Image AI Toolkit</div>', unsafe_style_text=True)
+st.markdown('<div class="sub-title">Bộ công cụ xử lý tài liệu thông minh & Trí tuệ nhân tạo Multi-Model cấp doanh nghiệp</div>', unsafe_style_text=True)
 
 # Khởi tạo các Tab chức năng
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "✂️ Tách PDF", 
-    "📝 PDF sang Word & AI Tóm tắt", 
+    "✂️️ Tách PDF", 
+    "📝 PDF sang Word & AI", 
     "📊 Trích xuất Excel", 
     "🧩 Gộp PDF", 
     "🔄 Chuyển sang PDF", 
-    "🖼️ AI Xóa phông"
+    "🖼️️ AI Xóa phông"
 ])
 
 # ==============================================================================
