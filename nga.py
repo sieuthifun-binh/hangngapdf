@@ -162,7 +162,7 @@ with st.sidebar:
 # ==============================================================================
 st.markdown("""
 <div class='hero-banner'>
-    <h1>🏛️ PRO PDF & AI DOCUMENT WORKSPACE</h1>
+    <h1>🏛️ CHÚC BẠN MỘT NGÀY MAY MẮN- HE HE</h1>
     <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động tích hợp Trí tuệ nhân tạo.</p>
     <div class='status-badge'>✨ Công nghệ xử lý luồng song song AI Studio</div>
 </div>
