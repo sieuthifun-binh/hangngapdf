@@ -34,6 +34,14 @@ st.markdown("""
         font-weight: bold !important;
         border-radius: 8px !important;
     }
+    .footer-copyright {
+        text-align: center;
+        margin-top: 50px;
+        padding: 20px 0;
+        font-size: 14px;
+        color: #6B7280;
+        border-top: 1px solid #E5E7EB;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -238,50 +246,74 @@ with tab4:
                 st.error(f"❌ Lỗi: {str(e)}")
 
 # ==============================================================================
-# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF ---
+# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (HỖ TRỢ UPLOAD NHIỀU FILE GỘP THÀNH 1 PDF) ---
 # ==============================================================================
 with tab5:
     st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang File PDF")
-    f_convert = st.file_uploader("Tải lên file nguồn cần chuyển đổi sang PDF:", type=["docx", "xlsx", "png", "jpg", "jpeg"], key="conv_source")
+    files_convert = st.file_uploader(
+        "Tải lên các file nguồn cần chuyển đổi sang PDF (có thể chọn nhiều file):", 
+        type=["docx", "xlsx", "png", "jpg", "jpeg"], 
+        accept_multiple_files=True,
+        key="conv_source_multi"
+    )
     
-    if st.button("Thực hiện chuyển đổi mã hóa", type="primary", disabled=(not f_convert)):
-        with st.spinner("Đang phân tích định dạng và kết xuất đồ họa sang PDF..."):
+    if st.button("Thực hiện chuyển đổi mã hóa & Ghép thành PDF", type="primary", disabled=(not files_convert)):
+        with st.spinner("Đang phân tích định dạng và kết xuất tất cả tập tin sang 1 file PDF hoàn chỉnh..."):
             try:
-                f_name = f_convert.name
-                ext = f_name.split('.')[-1].lower()
-                pdf_out = io.BytesIO()
+                final_pdf_doc = fitz.open()
+                processed_count = 0
                 
-                if ext in ["png", "jpg", "jpeg"]:
-                    image = Image.open(f_convert)
-                    if image.mode in ("RGBA", "P"): image = image.convert("RGB")
-                    image.save(pdf_out, format="PDF")
-                    st.success("🎉 Đã chuyển đổi bức ảnh sang file PDF thành công!")
-                    st.download_button("📥 Tải về file ảnh dạng PDF", pdf_out.getvalue(), f"{f_name.rsplit('.', 1)[0]}.pdf", mime="application/pdf")
-                
-                elif ext == "xlsx":
-                    df_excel = pd.read_excel(f_convert)
-                    doc = fitz.open()
-                    page = doc.new_page()
-                    string_data = df_excel.to_string()
-                    page.insert_text((40, 40), f"TÀI LIỆU KẾT XUẤT TỪ FILE EXCEL: {f_name}\n\n" + string_data, fontsize=10)
-                    doc.save(pdf_out)
-                    doc.close()
-                    st.success("🎉 Đã trích xuất dữ liệu Excel sang dạng trang văn bản PDF!")
-                    st.download_button("📥 Tải về file Excel dạng PDF", pdf_out.getvalue(), f"{f_name.rsplit('.', 1)[0]}.pdf", mime="application/pdf")
-                
-                elif ext == "docx":
-                    import docx
-                    doc_word = docx.Document(f_convert)
-                    doc_pdf = fitz.open()
-                    page = doc_pdf.new_page()
-                    text_lines = [f"TÀI LIỆU KẾT XUẤT TỪ VĂN BẢN WORD: {f_name}\n"]
-                    for p in doc_word.paragraphs:
-                        if p.text.strip(): text_lines.append(p.text)
-                    page.insert_text((50, 50), "\n".join(text_lines), fontsize=12)
-                    doc_pdf.save(pdf_out)
-                    doc_pdf.close()
-                    st.success("🎉 Đã biên dịch toàn bộ văn bản tài liệu Word sang file PDF!")
-                    st.download_button("📥 Tải về file Word dạng PDF", pdf_out.getvalue(), f"{f_name.rsplit('.', 1)[0]}.pdf", mime="application/pdf")
+                for f_convert in files_convert:
+                    f_name = f_convert.name
+                    ext = f_name.split('.')[-1].lower()
+                    
+                    # 1. Xử lý file Ảnh (PNG, JPG, JPEG)
+                    if ext in ["png", "jpg", "jpeg"]:
+                        image = Image.open(f_convert)
+                        if image.mode in ("RGBA", "P"): 
+                            image = image.convert("RGB")
+                        
+                        img_bytes = io.BytesIO()
+                        image.save(img_bytes, format="PDF")
+                        img_pdf = fitz.open("pdf", img_bytes.getvalue())
+                        final_pdf_doc.insert_pdf(img_pdf)
+                        img_pdf.close()
+                        processed_count += 1
+                    
+                    # 2. Xử lý file Excel (XLSX)
+                    elif ext == "xlsx":
+                        df_excel = pd.read_excel(f_convert)
+                        page = final_pdf_doc.new_page()
+                        string_data = df_excel.to_string()
+                        page.insert_text((40, 40), f"TÀI LIỆU KẾT XUẤT TỪ FILE EXCEL: {f_name}\n\n" + string_data, fontsize=10)
+                        processed_count += 1
+                    
+                    # 3. Xử lý file Word (DOCX)
+                    elif ext == "docx":
+                        import docx
+                        doc_word = docx.Document(f_convert)
+                        page = final_pdf_doc.new_page()
+                        text_lines = [f"TÀI LIỆU KẾT XUẤT TỪ VĂN BẢN WORD: {f_name}\n"]
+                        for p in doc_word.paragraphs:
+                            if p.text.strip(): 
+                                text_lines.append(p.text)
+                        page.insert_text((50, 50), "\n".join(text_lines), fontsize=12)
+                        processed_count += 1
+
+                if len(final_pdf_doc) > 0:
+                    pdf_out = io.BytesIO()
+                    final_pdf_doc.save(pdf_out)
+                    final_pdf_doc.close()
+                    
+                    st.success(f"🎉 Đã chuyển đổi thành công {processed_count} tập tin thành 1 file PDF hoàn chỉnh!")
+                    st.download_button(
+                        "📥 Tải về file PDF Tổng Hợp", 
+                        pdf_out.getvalue(), 
+                        "converted_combined.pdf", 
+                        mime="application/pdf"
+                    )
+                else:
+                    st.error("❌ Không có file hợp lệ nào được chuyển đổi.")
                     
             except Exception as e:
                 st.error(f"❌ Có lỗi phát sinh: {str(e)}")
@@ -399,3 +431,15 @@ with tab6:
                             st.error(f"❌ Lỗi xử lý ảnh: {str(e)}")
         else:
             st.info("📌 Vui lòng chọn và tải ảnh lên ở cột cấu hình bên trái để bắt đầu.")
+
+# ==============================================================================
+# --- DÒNG BẢN QUYỀN (COPYRIGHT) Ở CUỐI TRANG ---
+# ==============================================================================
+st.markdown(
+    """
+    <div class="footer-copyright">
+        © 2026 Pro PDF & Image AI Suite. All rights reserved. Powered by Vũ Quốc Bình - BHXH CS AN Dương- Hải Phòng.
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
