@@ -1,4 +1,4 @@
-streamlit
+streamlit>=1.30.0
 pikepdf
 pdfplumber
 pandas
@@ -7,4 +7,4 @@ google-generativeai
 requests
 Pillow
 openpyxl
-fitz
+python-docx
