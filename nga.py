@@ -22,6 +22,9 @@ st.set_page_config(
 # Thêm CSS tùy chỉnh cho giao diện Hiện Đại & Đẳng Cấp
 st.markdown("""
 <style>
+...
+</style>
+""", unsafe_allow_html=True)  # <- Đã đổi thành unsafe_allow_html
     /* 1. Đổi font chữ & background tổng thể */
     .main {
         background-color: #f8f9fa;
