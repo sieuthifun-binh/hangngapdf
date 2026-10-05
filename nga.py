@@ -264,47 +264,56 @@ with tab1:
 # ==============================================================================
 with tab2:
     st.subheader("📝 Chuyển đổi PDF sang Word kết hợp AI Tóm tắt")
-    st.caption("Chuyển đổi giữ nguyên cấu trúc định dạng và sử dụng Gemini AI để cô đọng nội dung.")
+    st.caption("Trích xuất văn bản PDF sang file Word (.docx) và sử dụng Gemini AI để cô đọng nội dung.")
     
     f_w = st.file_uploader("Tải file PDF cần chuyển đổi & tóm tắt:", type="pdf", key="w_ai")
     
     if st.button("Bắt đầu chuyển đổi & Phân tích AI", type="primary", use_container_width=True):
         if f_w:
-            with st.spinner("⚡ Bước 1: Đang tái tạo cấu trúc Layout Word (.docx)..."):
+            with st.spinner("⚡ Bước 1: Đang trích xuất nội dung sang file Word (.docx)..."):
                 try:
-                    with tempfile.TemporaryDirectory() as tmp_dir:
-                        in_path = os.path.join(tmp_dir, "in.pdf")
-                        out_path = os.path.join(tmp_dir, "out.docx")
-                        with open(in_path, "wb") as f: 
-                            f.write(f_w.getbuffer())
-                        
-                        cv = Converter(in_path)
-                        cv.convert(out_path, start=0, end=None, layout=True)
-                        cv.close()
-                        
-                        with open(out_path, "rb") as f_word:
-                            word_bytes = f_word.read()
-                        st.success("🎉 Đã chuyển đổi sang Word hoàn tất!")
-                        st.download_button("📥 Tải về file Word (.docx)", word_bytes, f"{f_w.name.rsplit('.', 1)[0]}.docx", use_container_width=True)
-                        
-                        st.markdown("---")
-                        st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
-                        
-                        doc_text = ""
-                        with fitz.open(in_path) as doc:
-                            for page in doc: 
-                                doc_text += " " + page.get_text()
-                        
-                        if len(doc_text.strip()) < 15:
-                            st.warning("⚠ Tài liệu không chứa dữ liệu văn bản kỹ thuật số.")
+                    import docx
+                    
+                    # Đọc văn bản từ PDF bằng PyMuPDF
+                    doc_text = ""
+                    doc_word = docx.Document()
+                    
+                    with fitz.open(stream=f_w.read(), filetype="pdf") as doc:
+                        for page_idx, page in enumerate(doc):
+                            text = page.get_text()
+                            doc_text += " " + text
+                            
+                            # Ghi vào file Word
+                            doc_word.add_heading(f"Trang {page_idx + 1}", level=2)
+                            doc_word.add_paragraph(text if text.strip() else "[Trang không chứa văn bản kỹ thuật số]")
+                    
+                    # Xuất file Word ra bộ nhớ RAM
+                    out_word = io.BytesIO()
+                    doc_word.save(out_word)
+                    word_bytes = out_word.getvalue()
+                    
+                    st.success("🎉 Đã chuyển đổi nội dung sang Word hoàn tất!")
+                    st.download_button(
+                        "📥 Tải về file Word (.docx)", 
+                        word_bytes, 
+                        f"{f_w.name.rsplit('.', 1)[0]}.docx", 
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                    
+                    st.markdown("---")
+                    st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
+                    
+                    if len(doc_text.strip()) < 15:
+                        st.warning("⚠ Tài liệu không chứa dữ liệu văn bản kỹ thuật số.")
+                    else:
+                        if st.session_state.model is None:
+                            st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
                         else:
-                            if st.session_state.model is None:
-                                st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
-                            else:
-                                with st.spinner("AI đang đọc toàn văn và cô đọng nội dung..."):
-                                    prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm, ý chính cốt lõi một cách khoa học, chuyên nghiệp bằng Tiếng Việt:\n\n{doc_text[:100000]}"
-                                    res = st.session_state.model.generate_content(prompt)
-                                    st.info(f"💡 **BẢN TÓM TẮT TỪ AI:**\n\n{res.text}")
+                            with st.spinner("AI đang đọc toàn văn và cô đọng nội dung..."):
+                                prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm, ý chính cốt lõi một cách khoa học, chuyên nghiệp bằng Tiếng Việt:\n\n{doc_text[:100000]}"
+                                res = st.session_state.model.generate_content(prompt)
+                                st.info(f"💡 **BẢN TÓM TẮT TỪ AI:**\n\n{res.text}")
                 except Exception as e:
                     st.error(f"❌ Lỗi hệ thống: {str(e)}")
         else:
