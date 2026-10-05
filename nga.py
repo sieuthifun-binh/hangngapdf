@@ -10,7 +10,7 @@ import pandas as pd
 import google.generativeai as genai
 
 # ==============================================================================
-# --- CAU HINH TRANG STREAMLIT ---
+# --- CẤU HÌNH TRANG STREAMLIT & CUSTOM CSS ---
 # ==============================================================================
 st.set_page_config(
     page_title="Pro PDF & Image AI Toolkit",
@@ -19,12 +19,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Thêm CSS tùy chỉnh cho giao diện Hiện Đại & Đẳng Cấp
-st.markdown("""
+# Thêm CSS tùy chỉnh cho giao diện Modern SaaS
+CUSTOM_CSS = """
 <style>
-...
-</style>
-""", unsafe_allow_html=True)  # <- Đã đổi thành unsafe_allow_html
     /* 1. Đổi font chữ & background tổng thể */
     .main {
         background-color: #f8f9fa;
@@ -34,7 +31,7 @@ st.markdown("""
     .main-title {
         font-family: 'Inter', sans-serif;
         font-weight: 800;
-        font-size: 2.6rem;
+        font-size: 2.5rem;
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -43,7 +40,7 @@ st.markdown("""
     .sub-title {
         color: #6c757d;
         font-size: 1.05rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1.8rem;
     }
 
     /* 3. Style Thẻ Card chứa nội dung */
@@ -90,17 +87,28 @@ st.markdown("""
         color: #4776E6 !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-
-    /* 6. Hộp Thông báo AI */
-    .ai-box {
-        background: #f0f7ff;
-        border-left: 4px solid #4776E6;
-        padding: 16px;
-        border-radius: 8px;
-        margin-top: 15px;
-    }
 </style>
-""", unsafe_style_text=True)
+"""
+
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# ==============================================================================
+# --- SIDEBAR & TIÊU ĐỀ ---
+# ==============================================================================
+with st.sidebar:
+    st.title("⚙️ Hệ thống")
+    if "GOOGLE_API_KEY" in st.secrets:
+        st.success("🟢 Gemini AI: Đã kết nối")
+    else:
+        st.error("🔴 Gemini AI: Chưa cấu hình Key")
+        
+    if "CONVERT_API_SECRET" in st.secrets:
+        st.success("🟢 Cloud API: Sẵn sàng")
+    else:
+        st.warning("🟠 Cloud API: Dùng Chế độ Local")
+
+st.markdown('<div class="main-title">⚡ Pro PDF & Image AI Toolkit</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Bộ công cụ xử lý tài liệu thông minh & Trí tuệ nhân tạo Multi-Model cấp doanh nghiệp</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # --- KHỞI TẠO DỮ LIỆU SESSION STATE & GEMINI AI ---
