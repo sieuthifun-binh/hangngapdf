@@ -9,4 +9,4 @@ pdf2docx
 python-docx
 pillow
 requests
-pip install streamlit-cropper
+streamlit-cropper
