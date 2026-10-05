@@ -145,18 +145,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- KHỞI TẠO GOOGLE GEMINI AI ---
-if 'model' not in st.session_state:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        try:
-            # Sử dụng model gemini-3.8-flash theo yêu cầu mới của Google API
-            st.session_state.model = genai.GenerativeModel('gemini-3.8-flash')
-        except Exception:
-            # Khởi tạo dự phòng nếu SDK chưa cập nhật danh nghĩa tên model
-            st.session_state.model = genai.GenerativeModel('gemini-flash')
-    else:
-        st.session_state.model = None
+# --- KHỞI TẠO DANH SÁCH MÔ HÌNH GEMINI AI (MULTI-MODEL FALLBACK) ---
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    
+    # Ưu tiên theo thứ tự: 3.8 -> 2.5 -> 1.5 -> flash chung
+    PREFERRED_MODELS = [
+        'gemini-3.8-flash',
+        'gemini-2.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-flash'
+    ]
+    st.session_state.gemini_models = PREFERRED_MODELS
+else:
+    st.session_state.gemini_models = []
 
 # ==============================================================================
 # 2. THANH SIDEBAR 3D
@@ -265,79 +268,154 @@ with tab1:
             st.warning("Vui lòng tải file PDF lên hệ thống trước.")
 
 # ==============================================================================
-# --- TAB 2: PDF SANG WORD (CLOUD API) & AI TÓM TẮT ---
+# --- TAB 2: PDF SANG WORD KẾT HỢP (CLOUD API + LOCAL) & AI TÓM TẮT ---
 # ==============================================================================
 with tab2:
-    st.subheader("📝 Chuyển đổi PDF sang Word (Giữ nguyên định dạng) & AI Tóm tắt")
-    st.caption("Chuyển đổi file PDF sang Word (.docx) qua API chuyên nghiệp giữ nguyên bố cục gốc và sử dụng AI tóm tắt.")
+    st.subheader("📝 Chuyển đổi PDF sang Word & AI Tóm tắt Chuyên sâu")
+    st.caption("Kết hợp API chuyển đổi giữ 100% định dạng gốc và AI phân tích cô đọng nội dung.")
     
-    f_w = st.file_uploader("Tải file PDF cần chuyển đổi & tóm tắt:", type="pdf", key="w_ai")
+    f_w = st.file_uploader("Tải file PDF cần xử lý:", type="pdf", key="w_ai")
     
-    if st.button("Bắt đầu chuyển đổi & Phân tích AI", type="primary", use_container_width=True):
+    # Lựa chọn chế độ xuất file Word
+    mode_docx = st.radio(
+        "Chọn chế độ xuất file Word (.docx):",
+        ["✨ Giữ nguyên 100% định dạng (Qua API)", "⚡ Trích xuất văn bản nhanh (Miễn phí local)"],
+        horizontal=True
+    )
+    
+    if st.button("🚀 Bắt đầu Chuyển đổi & Phân tích AI", type="primary", use_container_width=True):
         if f_w:
-            with st.spinner("⚡ Bước 1: Đang gửi file lên máy chủ API để chuyển đổi giữ nguyên định dạng..."):
-                try:
-                    api_secret = st.secrets.get("CONVERT_API_SECRET", None)
-                    
-                    if not api_secret:
-                        st.error("❌ Chưa cấu hình CONVERT_API_SECRET trong Streamlit Secrets.")
-                    else:
-                        response = requests.post(
-                            f"https://v2.convertapi.com/convert/pdf/to/docx?Secret={api_secret}",
-                            files={"File": (f_w.name, f_w.getvalue(), "application/pdf")}
-                        )
-                        
-                        if response.status_code == 200:
-                            result_json = response.json()
+            pdf_bytes = f_w.getvalue()
+            
+            # ------------------------------------------------------------------
+            # BƯỚC 1: XUẤT FILE WORD THEO CHẾ ĐỘ ĐÃ CHỌN
+            # ------------------------------------------------------------------
+            st.markdown("### 1. File Word xuất ra")
+            
+            # --- CHẾ ĐỘ 1: DÙNG CLOUD API (GIỮ 100% BỐ CỤC) ---
+            if "100%" in mode_docx:
+                with st.spinner("⚡ Đang gửi file lên Cloud API để tái tạo 100% bố cục gốc..."):
+                    try:
+                        api_secret = st.secrets.get("CONVERT_API_SECRET", None)
+                        if not api_secret:
+                            st.error("❌ Chưa cấu hình CONVERT_API_SECRET trong Secrets.")
+                        else:
+                            endpoint = f"https://v2.convertapi.com/convert/pdf/to/docx?Secret={api_secret}&StoreFile=true"
+                            response = requests.post(
+                                endpoint,
+                                files={"File": (f_w.name, pdf_bytes, "application/pdf")}
+                            )
                             
-                            # Kiểm tra an toàn cho cả chữ hoa 'Url' và chữ thường 'url'
-                            files_list = result_json.get('Files', [])
-                            if files_list:
-                                file_info = files_list[0]
-                                file_url = file_info.get('Url') or file_info.get('url')
+                            if response.status_code == 200:
+                                docx_data = None
+                                if 'application/octet-stream' in response.headers.get('Content-Type', '') or response.content.startswith(b'PK'):
+                                    docx_data = response.content
+                                else:
+                                    result_json = response.json()
+                                    files_list = result_json.get('Files', [])
+                                    if files_list:
+                                        file_info = files_list[0]
+                                        file_url = file_info.get('Url') or file_info.get('url')
+                                        if file_url:
+                                            docx_data = requests.get(file_url).content
+                                        elif 'FileData' in file_info:
+                                            import base64
+                                            docx_data = base64.b64decode(file_info['FileData'])
                                 
-                                if file_url:
-                                    docx_data = requests.get(file_url).content
-                                    st.success("🎉 Chuyển đổi thành công! Bố cục và định dạng được giữ nguyên.")
+                                if docx_data:
+                                    st.success("🎉 Chuyển đổi giữ nguyên 100% định dạng thành công!")
                                     st.download_button(
-                                        label="📥 Tải về file Word (.docx)", 
+                                        label="📥 Tải về file Word (.docx) - Chuẩn định dạng", 
                                         data=docx_data, 
-                                        file_name=f"{f_w.name.rsplit('.', 1)[0]}.docx", 
+                                        file_name=f"{f_w.name.rsplit('.', 1)[0]}_formatted.docx", 
                                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                         use_container_width=True
                                     )
                                 else:
-                                    st.error("❌ Không tìm thấy liên kết tải file trong phản hồi API.")
+                                    st.error("❌ Không thể trích xuất dữ liệu file từ API.")
+                            elif response.status_code in [400, 401, 402, 500] and ("quota" in response.text.lower() or "limit" in response.text.lower()):
+                                st.warning("⚠️ Tài khoản API đã hết lượt miễn phí! Tự động chuyển sang chế độ trích xuất nội bộ...")
+                                # Tự động fallback về cách local nếu hết lượt API
+                                doc_word = docx.Document()
+                                with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                                    for page in doc:
+                                        t = page.get_text()
+                                        if t.strip(): doc_word.add_paragraph(t)
+                                out_word = io.BytesIO()
+                                doc_word.save(out_word)
+                                st.download_button(
+                                    label="📥 Tải file Word (Văn bản thuần)", 
+                                    data=out_word.getvalue(), 
+                                    file_name=f"{f_w.name.rsplit('.', 1)[0]}_text.docx", 
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    use_container_width=True
+                                )
                             else:
-                                st.error("❌ Cấu trúc phản hồi từ API không chứa dữ liệu tập tin.")
-                        
-                        elif response.status_code in [400, 401, 402, 500] and ("quota" in response.text.lower() or "limit" in response.text.lower()):
-                            st.error("⚠️ Tài khoản API đã hết lượt chuyển đổi miễn phí. Vui lòng cập nhật API Key mới trong Secrets!")
-                        else:
-                            st.error(f"❌ Lỗi từ API Chuyển đổi ({response.status_code}): {response.text}")
+                                st.error(f"❌ Lỗi API Convert ({response.status_code}): {response.text}")
+                    except Exception as e:
+                        st.error(f"❌ Lỗi xử lý API: {str(e)}")
 
-                    # --- BƯỚC 2: AI TÓM TẮT VĂN BẢN (Dùng PyMuPDF) ---
-                    st.markdown("---")
-                    st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
-                    
-                    with fitz.open(stream=f_w.getvalue(), filetype="pdf") as doc:
-                        doc_text = " ".join([page.get_text() for page in doc])
-                    
-                    if len(doc_text.strip()) < 15:
-                        st.warning("⚠ Tài liệu không chứa đủ dữ liệu văn bản kỹ thuật số để AI phân tích.")
-                    else:
-                        if st.session_state.model is None:
-                            st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
-                        else:
-                            with st.spinner("AI đang đọc toàn văn và cô đọng nội dung..."):
-                                prompt = f"Bạn là một chuyên gia phân tích tài liệu cao cấp. Hãy đọc toàn bộ văn bản dưới đây và tóm tắt thành các luận điểm chính cốt lõi bằng Tiếng Việt:\n\n{doc_text[:100000]}"
+            # --- CHẾ ĐỘ 2: DÙNG LOCAL PYTHON (TRÍCH XUẤT CHỮ NHANH, MIỄN PHÍ) ---
+            else:
+                with st.spinner("⚡ Đang trích xuất văn bản bằng thư viện nội bộ..."):
+                    try:
+                        import docx
+                        doc_word = docx.Document()
+                        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                            for i, page in enumerate(doc):
+                                doc_word.add_heading(f"Trang {i+1}", level=2)
+                                text = page.get_text()
+                                doc_word.add_paragraph(text if text.strip() else "[Trang không có chữ kỹ thuật số]")
+                        
+                        out_word = io.BytesIO()
+                        doc_word.save(out_word)
+                        st.success("🎉 Trích xuất văn bản Word hoàn tất!")
+                        st.download_button(
+                            label="📥 Tải về file Word (.docx) - Dạng văn bản", 
+                            data=out_word.getvalue(), 
+                            file_name=f"{f_w.name.rsplit('.', 1)[0]}_text.docx", 
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Lỗi trích xuất Local: {str(e)}")
+
+            # ------------------------------------------------------------------
+            # BƯỚC 2: AI TÓM TẮT VĂN BẢN (DÙNG LOCAL FITZ + GEMINI VỚI AUTO-RETRY)
+            # ------------------------------------------------------------------
+            st.markdown("---")
+            st.markdown("### 2. 🤖 Trí tuệ nhân tạo Phân tích & Tóm tắt")
+            
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                full_text = " ".join([page.get_text() for page in doc])
+            
+            if len(full_text.strip()) < 15:
+                st.warning("⚠ Tài liệu không chứa đủ dữ liệu chữ dạng kỹ thuật số để AI đọc.")
+            else:
+                if st.session_state.model is None:
+                    st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Streamlit Secrets.")
+                else:
+                    with st.spinner("AI đang nghiên cứu toàn bộ văn bản và viết bản tóm tắt..."):
+                        prompt = f"Bạn là một chuyên gia phân tích tài liệu. Hãy đọc văn bản sau và tóm tắt thành các ý chính cốt lõi bằng Tiếng Việt:\n\n{full_text[:100000]}"
+                        
+                        # Cơ chế Auto-Retry chống nghẽn 5 requests/min của Gemini Free
+                        import time
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            try:
                                 res = st.session_state.model.generate_content(prompt)
                                 st.info(f"💡 **BẢN TÓM TẮT TỪ AI:**\n\n{res.text}")
-
-                except Exception as e:
-                    st.error(f"❌ Lỗi hệ thống: {str(e)}")
+                                break
+                            except Exception as ai_err:
+                                err_str = str(ai_err).lower()
+                                if ("429" in err_str or "quota" in err_str or "resourceexhausted" in err_str) and attempt < max_retries - 1:
+                                    time.sleep(3)  # Đợi 3s nếu dính giới hạn tần suất
+                                    continue
+                                else:
+                                    st.error(f"❌ Lỗi AI: {str(ai_err)}")
+                                    break
         else:
-            st.warning("Vui lòng tải file PDF nguồn lên hệ thống.")
+            st.warning("Vui lòng tải file PDF lên hệ thống.")
 
 # ==============================================================================
 # --- TAB 3: AI PDF SANG EXCEL ---
