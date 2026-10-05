@@ -277,38 +277,46 @@ with tab2:
         if f_w:
             with st.spinner("⚡ Bước 1: Đang gửi file lên máy chủ API để chuyển đổi giữ nguyên định dạng..."):
                 try:
-                    # Kiểm tra API Key của ConvertAPI trong secrets
                     api_secret = st.secrets.get("CONVERT_API_SECRET", None)
                     
                     if not api_secret:
                         st.error("❌ Chưa cấu hình CONVERT_API_SECRET trong Streamlit Secrets.")
                     else:
-                        # Gửi file PDF lên ConvertAPI
                         response = requests.post(
                             f"https://v2.convertapi.com/convert/pdf/to/docx?Secret={api_secret}",
                             files={"File": (f_w.name, f_w.getvalue(), "application/pdf")}
                         )
                         
                         if response.status_code == 200:
-                            # Lấy link tải file hoặc dữ liệu binary trực tiếp từ API
                             result_json = response.json()
-                            file_url = result_json['Files'][0]['Url']
                             
-                            # Tải dữ liệu file docx về bộ nhớ RAM
-                            docx_data = requests.get(file_url).content
-                            
-                            st.success("🎉 Chuyển đổi thành công! Bố cục và định dạng được giữ nguyên.")
-                            st.download_button(
-                                label="📥 Tải về file Word (.docx)", 
-                                data=docx_data, 
-                                file_name=f"{f_w.name.rsplit('.', 1)[0]}.docx", 
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                use_container_width=True
-                            )
+                            # Kiểm tra an toàn cho cả chữ hoa 'Url' và chữ thường 'url'
+                            files_list = result_json.get('Files', [])
+                            if files_list:
+                                file_info = files_list[0]
+                                file_url = file_info.get('Url') or file_info.get('url')
+                                
+                                if file_url:
+                                    docx_data = requests.get(file_url).content
+                                    st.success("🎉 Chuyển đổi thành công! Bố cục và định dạng được giữ nguyên.")
+                                    st.download_button(
+                                        label="📥 Tải về file Word (.docx)", 
+                                        data=docx_data, 
+                                        file_name=f"{f_w.name.rsplit('.', 1)[0]}.docx", 
+                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                        use_container_width=True
+                                    )
+                                else:
+                                    st.error("❌ Không tìm thấy liên kết tải file trong phản hồi API.")
+                            else:
+                                st.error("❌ Cấu trúc phản hồi từ API không chứa dữ liệu tập tin.")
+                        
+                        elif response.status_code in [400, 401, 402, 500] and ("quota" in response.text.lower() or "limit" in response.text.lower()):
+                            st.error("⚠️ Tài khoản API đã hết lượt chuyển đổi miễn phí. Vui lòng cập nhật API Key mới trong Secrets!")
                         else:
-                            st.error(f"❌ Lỗi từ API Chuyển đổi (Mã lỗi: {response.status_code}): {response.text}")
+                            st.error(f"❌ Lỗi từ API Chuyển đổi ({response.status_code}): {response.text}")
 
-                    # --- BƯỚC 2: AI TÓM TẮT VĂN BẢN (Dùng PyMuPDF lấy chữ siêu nhanh) ---
+                    # --- BƯỚC 2: AI TÓM TẮT VĂN BẢN (Dùng PyMuPDF) ---
                     st.markdown("---")
                     st.subheader("🤖 Trí tuệ nhân tạo Phân tích sâu")
                     
