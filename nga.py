@@ -190,7 +190,7 @@ with st.sidebar:
 # ==============================================================================
 st.markdown("""
 <div class='hero-banner'>
-    <h1>🏛️ PRO PDF & AI WORKSPACE 3D</h1>
+    <h1>🏛️ CHÀO MỪNG BẠN ĐẾN VỚI NHÀ CỦA TÔI </h1>
     <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động với giao diện dập nổi 3D.</p>
     <div class='status-badge'>✨ Không gian làm việc 3D Neumorphic Interactive</div>
 </div>
