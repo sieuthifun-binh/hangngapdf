@@ -8,12 +8,7 @@ import google.generativeai as genai
 import tempfile
 import os
 import requests
-from PIL import Image, ImageOps, ImageEnhance
-
-try:
-    from streamlit_cropper import st_cropper
-except ImportError:
-    st_cropper = None
+from PIL import Image, ImageEnhance
 
 # ==============================================================================
 # 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN 3D NEUMORPHIC UI
@@ -160,7 +155,7 @@ if 'model' not in st.session_state:
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/96/pdf-2.png", width=64)
     st.title("Pro PDF Suite 3D")
-    st.caption("Phiên bản Bền Vững Stable v4.0")
+    st.caption("Phiên bản Bền Vững v5.0")
     st.markdown("---")
     st.markdown("### ⚙️ Trạng thái Hệ thống")
     if st.session_state.model:
@@ -177,7 +172,7 @@ st.markdown("""
 <div class='hero-banner'>
     <h1>🏛️ PRO PDF & AI WORKSPACE 3D</h1>
     <p>Hệ thống xử lý tài liệu, biên tập hình ảnh trực quan và trích xuất dữ liệu AI tối ưu hóa.</p>
-    <div class='status-badge'>✨ Môi trường vận hành 3D ổn định tuyệt đối</div>
+    <div class='status-badge'>✨ Môi trường vận hành 3D siêu nhẹ & ổn định</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -336,17 +331,17 @@ with tab4:
                 st.error(f"❌ Lỗi: {str(e)}")
 
 # ==============================================================================
-# TAB 5: ĐỔI ĐUÔI SANG PDF (CÓ XEM TRƯỚC 30% & CHỈNH SỬA ẢNH TRỰC QUAN)
+# TAB 5: ĐỔI ĐUÔI SANG PDF (XEM TRƯỚC 30% & CHỈNH SỬA ẢNH TRỰC QUAN)
 # ==============================================================================
 with tab5:
     st.subheader("🔄 Chuyển đổi định dạng đa năng sang PDF")
-    st.caption("Xem trước thu nhỏ 30%, co dãn, xoay góc và chỉnh màu sắc/ánh sáng ảnh trước khi đóng gói PDF.")
+    st.caption("Xem trước thu nhỏ 30%, xoay góc, chỉnh độ sáng/tương phản/bão hòa ảnh trực quan trước khi đóng gói PDF.")
     
     files_convert = st.file_uploader(
         "Tải lên các file nguồn (Word, Excel, PNG, JPG):", 
         type=["docx", "xlsx", "png", "jpg", "jpeg"], 
         accept_multiple_files=True,
-        key="conv_source_multi_v3"
+        key="conv_source_multi_v5"
     )
     
     modified_images_map = {}
@@ -369,18 +364,6 @@ with tab5:
                 col_editor, col_preview = st.columns([3, 2], gap="large")
                 
                 with col_editor:
-                    st.markdown("##### 🛠️ Cắt / Co dãn vùng ảnh bằng chuột:")
-                    if st_cropper is not None:
-                        cropped_img = st_cropper(
-                            raw_img,
-                            realtime_update=True,
-                            box_color="#2563EB",
-                            aspect_ratio=None,
-                            key=f"crop_{idx}_{img_file.name}"
-                        )
-                    else:
-                        cropped_img = raw_img
-                    
                     st.markdown("##### 🎛️ Bộ tinh chỉnh màu sắc & góc xoay:")
                     c_s1, c_s2 = st.columns(2)
                     with c_s1:
@@ -390,7 +373,7 @@ with tab5:
                         contrast = st.slider("🌓 Độ tương phản:", 0.2, 2.0, 1.0, step=0.1, key=f"contrast_{idx}")
                         color_sat = st.slider("🎨 Bão hòa màu:", 0.0, 2.0, 1.0, step=0.1, key=f"sat_{idx}")
                     
-                    edited_img = cropped_img.copy()
+                    edited_img = raw_img.copy()
                     if angle != 0:
                         edited_img = edited_img.rotate(-angle, expand=True)
                     if brightness != 1.0:
@@ -461,11 +444,11 @@ with tab6:
     col_config, col_display = st.columns([1, 2], gap="large")
     
     with col_config:
-        img_file_raw = st.file_uploader("Tải ảnh nguồn:", type=["png", "jpg", "jpeg", "webp"], key="bg_up_v4")
-        bg_mode = st.selectbox("🎨 Màu nền mới:", ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"], key="bg_m_v4")
+        img_file_raw = st.file_uploader("Tải ảnh nguồn:", type=["png", "jpg", "jpeg", "webp"], key="bg_up_v5")
+        bg_mode = st.selectbox("🎨 Màu nền mới:", ["Trong suốt (Transparent)", "Nền màu đơn sắc (Solid Color)"], key="bg_m_v5")
         bg_color = "#FFFFFF"
         if bg_mode == "Nền màu đơn sắc (Solid Color)":
-            bg_color = st.color_picker("Chọn màu nền:", "#FFFFFF", key="bg_c_v4")
+            bg_color = st.color_picker("Chọn màu nền:", "#FFFFFF", key="bg_c_v5")
 
     with col_display:
         if img_file_raw is not None:
