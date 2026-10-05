@@ -5,7 +5,6 @@ import pandas as pd
 import io
 import fitz  # PyMuPDF
 import google.generativeai as genai
-from pdf2docx import Converter
 import tempfile
 import os
 import requests
