@@ -2,7 +2,6 @@ streamlit>=1.30.0
 pikepdf
 pdfplumber
 pandas
-fitz
 PyMuPDF
 google-generativeai
 pdf2docx
