@@ -12,10 +12,10 @@ import requests
 from PIL import Image, ImageOps
 
 # ==============================================================================
-# 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN CAO CẤP (PRO UI)
+# 1. CẤU HÌNH BAN ĐẦU & CSS GIAO DIỆN 3D CAO CẤP (3D NEUMORPHIC UI)
 # ==============================================================================
 st.set_page_config(
-    page_title="Pro PDF & AI Suite", 
+    page_title="Pro PDF & AI Suite 3D", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -23,27 +23,29 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Nhập font chữ Inter hiện đại */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Môi trường nền chính */
+    /* Môi trường nền xám nhạt để làm nổi bật hiệu ứng 3D */
     .stApp {
-        background-color: #F8FAFC;
+        background-color: #EEF2F6;
     }
 
-    /* Custom Header Banner */
+    /* Header Banner hiệu ứng 3D dập nổi */
     .hero-banner {
-        background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #2563EB 100%);
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
         padding: 32px 24px;
-        border-radius: 16px;
+        border-radius: 20px;
         color: white;
         text-align: center;
         margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+        box-shadow: 8px 8px 16px rgba(166, 180, 200, 0.7), 
+                    -8px -8px 16px rgba(255, 255, 255, 0.9),
+                    inset 0px 1px 1px rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .hero-banner h1 {
         font-size: 36px !important;
@@ -51,6 +53,7 @@ st.markdown("""
         color: #FFFFFF !important;
         margin-bottom: 8px !important;
         letter-spacing: -0.5px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.4);
     }
     .hero-banner p {
         font-size: 16px;
@@ -60,50 +63,75 @@ st.markdown("""
     }
     .status-badge {
         display: inline-block;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(8px);
-        padding: 4px 12px;
+        padding: 6px 16px;
         border-radius: 20px;
         font-size: 13px;
         color: #38BDF8;
         border: 1px solid rgba(56, 189, 248, 0.3);
+        box-shadow: inset 0 1px 2px rgba(255,255,255,0.2);
     }
 
-    /* Định dạng Thanh Tab Chuyên Nghiệp */
+    /* ĐỊNH DẠNG TAB 3D DẬP NỔI CAO CẤP */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #E2E8F0;
-        padding: 6px;
-        border-radius: 12px;
+        gap: 12px;
+        background-color: #EEF2F6;
+        padding: 10px;
+        border-radius: 16px;
+        box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 48px;
+        height: 50px;
         font-size: 15px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         color: #475569 !important;
-        border-radius: 8px !important;
-        padding: 0px 20px !important;
-        background-color: transparent;
+        border-radius: 12px !important;
+        padding: 0px 22px !important;
+        background-color: #EEF2F6;
         border: none !important;
-        transition: all 0.2s ease;
+        box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff;
+        transition: all 0.2s ease-in-out;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-2px);
+        color: #2563EB !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #FFFFFF !important;
+        background: linear-gradient(145deg, #ffffff, #e6e6e6) !important;
         color: #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #ffffff, 0px 4px 10px rgba(37, 99, 235, 0.2) !important;
+        border: 1px solid rgba(37, 99, 235, 0.2) !important;
     }
 
-    /* Container Nội Dụng Dạng Card Nổi */
-    div[data-testid="stVerticalBlock"] > div.element-container {
-        border-radius: 8px;
+    /* KHUNG NỘI DUNG 6 CHỨC NĂNG DẠNG KHỐI BO VIỀN 3D */
+    .stTabs [data-baseweb="tab-panel"] {
+        background-color: #EEF2F6;
+        border-radius: 24px;
+        padding: 28px;
+        margin-top: 20px;
+        box-shadow: 9px 9px 18px #d1d9e6, -9px -9px 18px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.6);
     }
-    
-    /* Tùy chỉnh Nút Bấm Pro */
+
+    /* NÚT BẤM 3D (BUTTON) */
     .stButton>button {
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        height: 44px !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        height: 48px !important;
+        background: linear-gradient(145deg, #2563EB, #1D4ED8) !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 4px 4px 10px rgba(37, 99, 235, 0.3), -2px -2px 6px #ffffff !important;
         transition: all 0.2s ease !important;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 6px 6px 14px rgba(37, 99, 235, 0.4), -2px -2px 6px #ffffff !important;
+    }
+    .stButton>button:active {
+        transform: translateY(1px);
+        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3) !important;
     }
     
     /* Footer Copyright */
@@ -113,7 +141,7 @@ st.markdown("""
         padding: 24px 0;
         font-size: 13px;
         color: #64748B;
-        border-top: 1px solid #E2E8F0;
+        border-top: 1px solid #CBD5E1;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,12 +155,12 @@ if 'model' not in st.session_state:
         st.session_state.model = None
 
 # ==============================================================================
-# 2. THANH SIDEBAR ĐOÀN THỂ & HỆ THỐNG
+# 2. THANH SIDEBAR 3D
 # ==============================================================================
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/96/pdf-2.png", width=64)
-    st.title("Pro PDF Suite")
-    st.caption("Phiên bản Doanh nghiệp v2.5")
+    st.title("Pro PDF Suite 3D")
+    st.caption("Phiên bản Doanh nghiệp 3D v3.0")
     
     st.markdown("---")
     st.markdown("### ⚙️ Trạng thái Hệ thống")
@@ -152,19 +180,19 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 💡 Hướng dẫn nhanh")
     st.markdown("""
-    - **Cắt PDF:** Chọn trang lẻ, chẵn hoặc danh sách trang cụ thể.
-    - **Đổi sang PDF:** Hỗ trợ kéo thả nhiều file Word, Excel, Ảnh để ghép thành 1 PDF duy nhất.
-    - **AI Tóm tắt:** Đọc tự động toàn bộ file PDF và tóm lược ý chính.
+    - **Cắt PDF:** Tách các trang chẵn/lẻ hoặc theo danh sách tùy chọn.
+    - **Đổi sang PDF:** Tải nhiều file Word, Excel, Ảnh để gộp thành 1 PDF duy nhất.
+    - **AI Tóm tắt:** Đọc tự động toàn bộ nội dung PDF và xuất ý chính.
     """)
 
 # ==============================================================================
-# 3. HEADER BANNER CHUYÊN NGHIỆP
+# 3. HEADER BANNER 3D
 # ==============================================================================
 st.markdown("""
 <div class='hero-banner'>
-    <h1>🏛️ PRO PDF & AI DOCUMENT WORKSPACE</h1>
-    <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động tích hợp Trí tuệ nhân tạo.</p>
-    <div class='status-badge'>✨ Công nghệ xử lý luồng song song AI Studio</div>
+    <h1>🏛️ PRO PDF & AI WORKSPACE 3D</h1>
+    <p>Nền tảng xử lý tài liệu, bốc tách dữ liệu Excel và tách nền ảnh tự động với giao diện dập nổi 3D.</p>
+    <div class='status-badge'>✨ Không gian làm việc 3D Neumorphic Interactive</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -182,7 +210,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 # --- TAB 1: BĂM PDF ---
 # ==============================================================================
 with tab1:
-    st.subheader("✂️️ Phân tách trang PDF thông minh")
+    st.subheader("✂️ Phân tách trang PDF thông minh")
     st.caption("Cắt hoặc tách các trang cụ thể từ file PDF một cách chính xác.")
     
     uploaded = st.file_uploader("Tải file PDF cần băm:", type="pdf", key="b1")
@@ -269,7 +297,7 @@ with tab2:
                                 doc_text += " " + page.get_text()
                         
                         if len(doc_text.strip()) < 15:
-                            st.warning("⚠️️ Tài liệu không chứa dữ liệu văn bản kỹ thuật số (Cần dùng OCR).")
+                            st.warning("⚠ Tài liệu không chứa dữ liệu văn bản kỹ thuật số.")
                         else:
                             if st.session_state.model is None:
                                 st.error("❌ Chưa cấu hình GOOGLE_API_KEY trong Secrets.")
@@ -367,7 +395,7 @@ with tab4:
                 st.error(f"❌ Lỗi gộp file: {str(e)}")
 
 # ==============================================================================
-# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF (UPLOAD NHIỀU FILE GỘP THÀNH 1 PDF) ---
+# --- TAB 5: CHUYỂN ĐỔI ĐA NĂNG SANG PDF ---
 # ==============================================================================
 with tab5:
     st.subheader("🔄 Bộ chuyển đổi định dạng đa năng sang PDF")
@@ -549,7 +577,7 @@ with tab6:
 st.markdown(
     """
     <div class="footer-copyright">
-        © 2026 Pro PDF & AI Suite. All rights reserved. Powered by Streamlit & AI Cloud Services.
+        © 2026 Pro PDF & AI Suite 3D. All rights reserved. Powered by Streamlit & AI Cloud Services.
     </div>
     """, 
     unsafe_allow_html=True
